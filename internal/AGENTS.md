@@ -6,8 +6,8 @@
 
 ## Key Files
 - `internal/infra/config/config.go` - configuration loading and persisted settings.
-- `internal/app/indexing.go` - single-file indexing and deletion use case.
-- `internal/app/index_runner.go` - full-folder indexing run orchestration.
+- `internal/usecase/indexing.go` - single-file indexing and deletion use case.
+- `internal/usecase/index_runner.go` - full-folder indexing run orchestration.
 - `internal/domain/document_file.go` - supported document path policy.
 - `internal/infra/scanner/scanner.go` - supported document file walking.
 - `internal/infra/worker/worker.go` - worker pool execution.
@@ -35,7 +35,7 @@ go run ./cmd/app
 ## Dependencies
 - See [../ARCHITECTURE.md](../ARCHITECTURE.md) for cross-module data flow.
 - `internal/server` should depend on injected interfaces and `internal/domain`, not concrete config/search/scanner/worker/watcher adapters.
-- `internal/app` owns use-case orchestration and should depend on consumer-side ports plus small infrastructure helpers such as `scanner` and `worker`.
+- `internal/usecase` owns use-case orchestration and should depend on consumer-side ports plus small infrastructure helpers such as `scanner` and `worker`.
 - `internal/infra/scanner` and `internal/infra/worker` should remain independent of parser/search/app business behavior.
 - Parser behavior changes can affect indexed content and search results through the `cmd/app` wiring path.
 

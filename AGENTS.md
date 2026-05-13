@@ -20,7 +20,7 @@ go build ./cmd/app
 ## Navigation
 - `cmd/app` - search server entrypoint.
 - `cmd/client` - Windows WebView client entrypoint.
-- `internal/app` - indexing/search/watch-path use cases and indexing run orchestration.
+- `internal/usecase` - indexing/search/watch-path use cases and indexing run orchestration.
 - `internal/infra/scanner` - supported document file walking.
 - `internal/infra/worker` - worker pool execution.
 - `internal/infra/parser` - HWP/PDF text extraction.

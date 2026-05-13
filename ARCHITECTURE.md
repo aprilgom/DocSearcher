@@ -18,23 +18,23 @@ code for Codex-readiness ownership.
 
 1. `cmd/app/main.go` constructs `search.NewEngine("hwp-index.bleve")`.
 2. `cmd/app/main.go` wires the shared search engine and other concrete
-   adapters to small `internal/app`
+   adapters to small `internal/usecase`
    use cases: `Indexer`, `Searcher`, `WatchPaths`, and `Stats`.
-3. `cmd/app/main.go` wires `app.IndexRunner`, `watcher.Registry`, and
+3. `cmd/app/main.go` wires `usecase.IndexRunner`, `watcher.Registry`, and
    `server.Handlers`; internal packages receive dependencies instead of
    constructing parser/search/config implementations themselves.
-4. `watcher.Start()` starts fsnotify handling. `app.WatchPaths.Start()` loads
+4. `watcher.Start()` starts fsnotify handling. `usecase.WatchPaths.Start()` loads
    `config.json`, recursively watches configured folders through the injected
    registry, and triggers initial indexing for each watched path.
 5. `server.Start("8080", handlers)` registers HTML/HTMX endpoints:
    `/`, `/api/search`, `/api/config`, `/api/watch`, `/api/stats`, and
    `/api/index/reset`.
-6. Adding a watched path through `/api/watch` calls `app.WatchPaths`, which
+6. Adding a watched path through `/api/watch` calls `usecase.WatchPaths`, which
    persists `config.json`, starts recursive watching, and starts indexing.
-7. `app.IndexRunner.Start` uses `internal/infra/scanner` to walk paths accepted by
+7. `usecase.IndexRunner.Start` uses `internal/infra/scanner` to walk paths accepted by
    `domain.IsSupportedDocumentPath`, then sends them to `internal/infra/worker` for
-   parallel processing. Each path is processed through `app.Indexer.IndexFile`.
-8. `app.Searcher` converts UI flags into `domain.SearchRequest`; `search.Engine`
+   parallel processing. Each path is processed through `usecase.Indexer.IndexFile`.
+8. `usecase.Searcher` converts UI flags into `domain.SearchRequest`; `search.Engine`
    runs exact, no-space, or query-string searches and returns highlighted
    results to the web UI.
 
@@ -45,7 +45,7 @@ code for Codex-readiness ownership.
   file create/write/remove reactions. File indexing/deletion behavior is
   injected through `watcher.FileHandler`; initial scans are injected through
   `watcher.Registry.StartIndexing`.
-- `internal/app`: owns small use-case types and consumer-side ports:
+- `internal/usecase`: owns small use-case types and consumer-side ports:
   `Indexer`, `IndexRunner`, `Searcher`, `WatchPaths`, and `Stats`.
 - `internal/domain`: owns core document/search/watch-path value types,
   supported document path policy, and normalization rules shared by use cases
@@ -56,7 +56,7 @@ code for Codex-readiness ownership.
   `goHwpTxt.ExtractText` for `.hwp`/`.hwpx` and `github.com/ledongthuc/pdf` for
   `.pdf`. See `docs/parser-boundary.md` for the parser-facing contract and
   fixture expectations.
-- `internal/infra/search`: adapts `app` document/search/count/reset ports to an
+- `internal/infra/search`: adapts `usecase` document/search/count/reset ports to an
   instance-owned Bleve index, mapping, indexing, querying, counting, deletion,
   and reset.
 - `internal/server`: owns HTTP routes, template rendering, and HTMX fragments.
@@ -71,7 +71,7 @@ code for Codex-readiness ownership.
 ```mermaid
 flowchart TD
     app[cmd/app] --> search[internal/infra/search]
-    app --> appuse[internal/app]
+    app --> appuse[internal/usecase]
     app --> domain[internal/domain]
     app --> parser[internal/infra/parser]
     app --> scanner[internal/infra/scanner]
@@ -118,12 +118,12 @@ flowchart TD
 ## Codex Change Guidance
 
 - Server/search behavior changes usually cross `internal/server`,
-  `internal/app`, `internal/infra/search`, and `web/templates`; verify with targeted
+  `internal/usecase`, `internal/infra/search`, and `web/templates`; verify with targeted
   search/indexing flows.
 - Parser behavior changes should start in `internal/infra/parser` unless the task
   explicitly requires changing the local `goHwpTxt` dependency.
 - Indexing and watcher changes are concurrency-sensitive. Check
-  `app.Indexer`, `app.IndexRunner`, `app.WatchPaths`, `internal/infra/scanner`,
+  `usecase.Indexer`, `usecase.IndexRunner`, `usecase.WatchPaths`, `internal/infra/scanner`,
   `internal/infra/worker`, and fsnotify event handling before changing startup or
   reset flows.
 - For Go code changes, run `go test ./...`; on macOS the Windows WebView client

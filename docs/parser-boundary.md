@@ -31,7 +31,7 @@ parser internals.
 | Unsupported extension | Non-nil `unsupported file type` error |
 
 The parser layer does not index, normalize spacing, walk watched folders, watch
-files, or render UI. Those responsibilities belong to `internal/app`,
+files, or render UI. Those responsibilities belong to `internal/usecase`,
 `internal/domain`, `internal/infra/scanner`, `internal/infra/watcher`, and
 `internal/server`.
 
