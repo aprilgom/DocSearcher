@@ -3,6 +3,7 @@ hwp-index.bleve/
 goHwpTxt/testdata/
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *.p12
