@@ -10,7 +10,8 @@ It is intentionally docs/stdlib only.
   HWP/HWPX parser package.
 
 ```bash
-python3 -m json.tool evals/codex-readiness-baseline.json
+cd evals
+python3 -m json.tool codex-readiness-baseline.json
 ```
 
 ## Representative Task Set
