@@ -1,0 +1,50 @@
+#!/bin/sh
+set -eu
+
+staged_go_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.go')
+staged_paths=$(git diff --cached --name-only --diff-filter=ACMR)
+
+blocked_paths=$(printf '%s\n' "$staged_paths" | grep -E '^(config\.json|hwp-index\.bleve/|goHwpTxt/testdata/)' || true)
+if [ -n "$blocked_paths" ]; then
+	printf 'blocked local runtime/test data in staged files:\n%s\n' "$blocked_paths" >&2
+	exit 1
+fi
+
+if [ -n "$staged_go_files" ]; then
+	unformatted=$(printf '%s\n' "$staged_go_files" | xargs gofmt -l)
+	if [ -n "$unformatted" ]; then
+		printf 'gofmt required for staged Go files:\n%s\n' "$unformatted" >&2
+		printf 'Run: gofmt -w %s\n' "$unformatted" >&2
+		exit 1
+	fi
+fi
+
+echo "Running root package tests"
+root_packages=$(go list ./... | grep -v '/cmd/client$')
+if [ -n "$root_packages" ]; then
+	printf '%s\n' "$root_packages" | xargs go test
+fi
+
+if [ -f goHwpTxt/go.mod ]; then
+	echo "Running go test ./... in goHwpTxt"
+	(
+		cd goHwpTxt
+		go test ./...
+	)
+fi
+
+echo "Checking go mod tidy"
+if ! go mod tidy -diff; then
+	printf 'go.mod or go.sum needs go mod tidy. Run go mod tidy and retry.\n' >&2
+	exit 1
+fi
+
+if [ -f goHwpTxt/go.mod ]; then
+	(
+		cd goHwpTxt
+		if ! go mod tidy -diff; then
+			printf 'goHwpTxt/go.mod or goHwpTxt/go.sum needs go mod tidy. Run go mod tidy in goHwpTxt and retry.\n' >&2
+			exit 1
+		fi
+	)
+fi
