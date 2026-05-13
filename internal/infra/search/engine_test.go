@@ -5,6 +5,7 @@ import (
 	"hwp-searcher/internal/domain"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -52,6 +53,32 @@ func TestBuildIndexMappingUsesDomainIndexSchemaFields(t *testing.T) {
 		if !strings.Contains(text, `"`+field+`"`) {
 			t.Fatalf("mapping does not include field %q: %s", field, text)
 		}
+	}
+}
+
+func TestDocumentCodecFieldMapUsesSchemaFields(t *testing.T) {
+	schema := domain.IndexSchema{
+		ContentField:        "custom_body",
+		ContentNoSpaceField: "custom_body_compact",
+		PathField:           "custom_source_path",
+	}
+	codec := newDocumentCodec(schema)
+	doc := domain.IndexedDocument{
+		ID:             "reports/quarterly.hwp",
+		Content:        "홍 길 동 보고서",
+		ContentNoSpace: "홍길동보고서",
+		Path:           "/ignored/by/codec.hwp",
+	}
+
+	got := codec.fieldMap(doc)
+	want := map[string]string{
+		schema.ContentField:        doc.Content,
+		schema.ContentNoSpaceField: doc.ContentNoSpace,
+		schema.PathField:           string(doc.ID),
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("fieldMap() = %#v, want %#v", got, want)
 	}
 }
 
