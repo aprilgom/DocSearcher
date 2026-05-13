@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+staged_go_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.go')
+
+if [ -n "$staged_go_files" ]; then
+	unformatted=$(printf '%s\n' "$staged_go_files" | xargs gofmt -l)
+	if [ -n "$unformatted" ]; then
+		printf 'gofmt required for staged Go files:\n%s\n' "$unformatted" >&2
+		printf 'Run: gofmt -w %s\n' "$unformatted" >&2
+		exit 1
+	fi
+fi
