@@ -15,6 +15,15 @@ type fileHandler struct {
 	indexer app.Indexer
 }
 
+type indexResetHandler struct {
+	watchPaths app.WatchPaths
+	resetter   app.IndexResetter
+}
+
+func (h indexResetHandler) ResetIndex() error {
+	return h.watchPaths.ResetIndex(h.resetter)
+}
+
 func (h fileHandler) IndexFile(path string) {
 	if err := h.indexer.IndexFile(path); err != nil {
 		log.Printf("Failed to index %s: %v", path, err)
@@ -35,19 +44,21 @@ func main() {
 	}
 
 	fileIndexer := app.NewIndexer(parser.TextExtractor{}, search.Engine{})
-	watchPaths := app.NewWatchPaths(config.Store{}, watcher.Registry{StartIndexing: indexer.Start})
-	indexer.SetIndexer(fileIndexer)
+	indexRunner := indexer.NewRunner(fileIndexer)
+	watchRegistry := watcher.Registry{StartIndexing: indexRunner.Start}
+	watchPaths := app.NewWatchPaths(config.Store{}, watchRegistry)
 	watcher.SetFileHandler(fileHandler{indexer: fileIndexer})
-	server.SetHandlers(server.Handlers{
+
+	handlers := server.Handlers{
 		Searcher:   app.NewSearcher(search.Engine{}),
 		WatchPaths: watchPaths,
-		Stats:      app.NewStats(search.Engine{}, config.Store{}, indexer.Status{}),
-		Resetter:   search.Engine{},
-	})
+		Stats:      app.NewStats(search.Engine{}, config.Store{}, indexRunner),
+		Resetter:   indexResetHandler{watchPaths: watchPaths, resetter: search.Engine{}},
+	}
 
 	// Start Watcher
-	watcher.Start(watcher.Registry{StartIndexing: indexer.Start})
+	watcher.Start(watchRegistry)
 
 	// Start Server
-	server.Start("8080")
+	server.Start("8080", handlers)
 }
