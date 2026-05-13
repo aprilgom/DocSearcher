@@ -16,8 +16,9 @@ code for Codex-readiness ownership.
 
 ## Runtime Flow
 
-1. `cmd/app/main.go` calls `search.Init("hwp-index.bleve")`.
-2. `cmd/app/main.go` constructs concrete adapters and small `internal/app`
+1. `cmd/app/main.go` constructs `search.NewEngine("hwp-index.bleve")`.
+2. `cmd/app/main.go` wires the shared search engine and other concrete
+   adapters to small `internal/app`
    use cases: `Indexer`, `Searcher`, `WatchPaths`, and `Stats`.
 3. `cmd/app/main.go` wires `indexer.Runner`, `watcher.Registry`, and
    `server.Handlers`; internal packages receive dependencies instead of
@@ -55,8 +56,8 @@ code for Codex-readiness ownership.
   `goHwpTxt.ExtractText` for `.hwp`/`.hwpx` and `github.com/ledongthuc/pdf` for
   `.pdf`. See `docs/parser-boundary.md` for the parser-facing contract and
   fixture expectations.
-- `internal/search`: adapts `app` document/search/count/reset ports to the
-  process-global Bleve index, mapping, indexing, querying, counting, deletion,
+- `internal/search`: adapts `app` document/search/count/reset ports to an
+  instance-owned Bleve index, mapping, indexing, querying, counting, deletion,
   and reset.
 - `internal/server`: owns HTTP routes, template rendering, and HTMX fragments.
   Search/config/reset workflows are delegated to injected interfaces.
