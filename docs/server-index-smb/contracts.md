@@ -86,8 +86,8 @@ Server config rules:
   most specific matching root owns that file.
 - A parent root scan must skip subtrees owned by more specific child roots so
   the same physical file is not indexed under multiple logical IDs.
-- Existing `watched_paths` may be accepted for one transition release as legacy
-  input, but new config and UI flows should write `document_roots`.
+- `document_roots` is the only supported root configuration for this design.
+  Existing `watched_paths` config is not migrated in place.
 
 ## Client Config
 

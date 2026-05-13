@@ -65,8 +65,8 @@ features should be designed against the Wails client.
   replaces it.
 - [x] Reset and rebuild the Bleve index instead of migrating existing documents
   in place.
-- [x] Accept existing `watched_paths` for one transition release, but make
-  `document_roots` the new config contract.
+- [x] Do not keep legacy `watched_paths` compatibility; require
+  `document_roots`.
 - [x] Support Windows UNC mounts as well as drive-letter mounts.
 - [x] Store `root_id` and `relative_path` in Bleve; keep `server_path`
   server-only and optional.
@@ -90,10 +90,8 @@ Server contracts:
   fields.
 - [ ] Add validation for required SMB share metadata when native open behavior
   is enabled for a root.
-- [ ] Read legacy `watched_paths` as transition input and normalize them into
-  generated document roots where possible.
-- [ ] Keep current watched-path behavior only where needed for compatibility,
-  while writing new configuration as `document_roots`.
+- [ ] Remove or replace `watched_paths` config reads/writes in the server path.
+- [ ] Update config UI/API language from watched paths to document roots.
 
 Indexing and search storage:
 
@@ -143,25 +141,21 @@ Index reliability:
 Do not migrate existing Bleve documents in place. The current index stores
 absolute paths as IDs, so the simpler and safer migration is:
 
-1. Add document root config.
+1. Add explicit `document_roots` config.
 2. Change indexing to write logical IDs.
 3. Reset `hwp-index.bleve`.
 4. Re-index configured document roots.
 
-During a transition, existing `watched_paths` config can be treated as legacy
-input. New deployments should use `document_roots`.
+No `watched_paths` compatibility layer is planned. Operators should replace
+existing local config with explicit `document_roots` that include
+operator-defined `id`, `server_path`, `smb_host`, and `smb_share`.
 
-Transition rules:
+Migration rules:
 
-- If only `watched_paths` exists, load each path as a generated document root
-  for scan compatibility, then prompt operators to save explicit
-  `document_roots` with operator-defined `id`, `smb_host`, and `smb_share`.
-- Do not rely on generated legacy root IDs for SMB open behavior. Native SMB
-  open requires explicit document roots with Samba share metadata.
-- If both `document_roots` and `watched_paths` exist, prefer
-  `document_roots`.
-- After one release, remove writes to `watched_paths`; later removal of read
-  compatibility can be handled as a separate cleanup.
+- If `config.json` contains only `watched_paths`, treat it as an old config and
+  require operators to write `document_roots` before using the SMB design.
+- If both `document_roots` and `watched_paths` exist, ignore `watched_paths`.
+- Do not generate root IDs from legacy paths.
 - Rebuild `hwp-index.bleve` whenever changing from absolute-path IDs to logical
   IDs.
 

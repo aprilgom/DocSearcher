@@ -19,10 +19,10 @@
   during a full scan.
 - Integration test removing a child root and re-indexing moves affected files to
   the parent root when a parent root still contains them.
-- Unit test legacy `watched_paths` load as transition document roots when
-  `document_roots` is absent.
-- Unit test legacy `watched_paths` roots are marked as scan-compatible but not
-  SMB-open-ready until explicit Samba share metadata is configured.
+- Unit test old `watched_paths`-only config is rejected or reported as requiring
+  explicit `document_roots`.
+- Unit test config loading ignores `watched_paths` when `document_roots` is
+  present.
 - Integration test re-index after file change under a configured root.
 - Integration test delete events remove the logical document ID without needing
   the deleted file to exist.
