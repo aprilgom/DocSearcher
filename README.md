@@ -38,7 +38,7 @@ go run ./cmd/client
 - [ARCHITECTURE.md](ARCHITECTURE.md): 런타임 흐름과 의존성 지도
 - [AGENTS.md](AGENTS.md): Codex 작업 명령, 검증 기준, 변경 경계
 - [cmd/AGENTS.md](cmd/AGENTS.md): 서버와 Windows WebView 클라이언트 진입점 작업 지침
-- [internal/AGENTS.md](internal/AGENTS.md): indexer/parser/search/server 내부 패키지 작업 지침
+- [internal/AGENTS.md](internal/AGENTS.md): app/scanner/worker/parser/search/server 내부 패키지 작업 지침
 - [evals/README.md](evals/README.md): Codex 작업 결과 기록 방식
 
 ## 개선한 점

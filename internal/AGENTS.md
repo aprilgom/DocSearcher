@@ -6,7 +6,11 @@
 
 ## Key Files
 - `internal/config/config.go` - configuration loading and persisted settings.
-- `internal/indexer/walker.go` - file walking and indexing flow.
+- `internal/app/indexing.go` - single-file indexing and deletion use case.
+- `internal/app/index_runner.go` - full-folder indexing run orchestration.
+- `internal/domain/document_file.go` - supported document path policy.
+- `internal/scanner/scanner.go` - supported document file walking.
+- `internal/worker/worker.go` - worker pool execution.
 - `internal/parser/parser.go` - HWP/HWPX/PDF text extraction dispatch.
 - `internal/search/engine.go` - Bleve index setup, indexing, querying, and close behavior.
 - `internal/server/server.go` - HTTP server and web UI handlers.
@@ -30,8 +34,9 @@ go run ./cmd/app
 
 ## Dependencies
 - See [../ARCHITECTURE.md](../ARCHITECTURE.md) for cross-module data flow.
-- `internal/server` should depend on injected interfaces and `internal/domain`, not concrete config/search/indexer/watcher adapters.
-- `internal/indexer` should depend on injected indexing behavior and `internal/domain`, not concrete parser/search adapters.
+- `internal/server` should depend on injected interfaces and `internal/domain`, not concrete config/search/scanner/worker/watcher adapters.
+- `internal/app` owns use-case orchestration and should depend on consumer-side ports plus small infrastructure helpers such as `scanner` and `worker`.
+- `internal/scanner` and `internal/worker` should remain independent of parser/search/app business behavior.
 - Parser behavior changes can affect indexed content and search results through the `cmd/app` wiring path.
 
 ## Safety And Change Boundaries

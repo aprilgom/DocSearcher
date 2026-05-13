@@ -3,7 +3,6 @@ package main
 import (
 	"hwp-searcher/internal/app"
 	"hwp-searcher/internal/config"
-	"hwp-searcher/internal/indexer"
 	"hwp-searcher/internal/parser"
 	"hwp-searcher/internal/search"
 	"hwp-searcher/internal/server"
@@ -45,7 +44,7 @@ func main() {
 	defer searchEngine.Close()
 
 	fileIndexer := app.NewIndexer(parser.TextExtractor{}, searchEngine)
-	indexRunner := indexer.NewRunner(fileIndexer)
+	indexRunner := app.NewIndexRunner(fileIndexer.IndexFile)
 	watchRegistry := watcher.Registry{StartIndexing: indexRunner.Start}
 	watchPaths := app.NewWatchPaths(config.Store{}, watchRegistry)
 	watcher.SetFileHandler(fileHandler{indexer: fileIndexer})

@@ -20,7 +20,9 @@ go build ./cmd/app
 ## Navigation
 - `cmd/app` - search server entrypoint.
 - `cmd/client` - Windows WebView client entrypoint.
-- `internal/indexer` - file walking and indexing flow.
+- `internal/app` - indexing/search/watch-path use cases and indexing run orchestration.
+- `internal/scanner` - supported document file walking.
+- `internal/worker` - worker pool execution.
 - `internal/parser` - HWP/PDF text extraction.
 - `internal/search` - Bleve search engine.
 - `goHwpTxt` - local HWP/HWPX parser module.
