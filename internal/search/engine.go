@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"hwp-searcher/internal/domain"
 	"os"
 	"reflect"
 	"sync"
@@ -13,6 +14,8 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 )
+
+type Engine struct{}
 
 var (
 	index bleve.Index
@@ -137,6 +140,10 @@ func IndexDocument(id string, content string, contentNoSpace string) error {
 	return index.Index(id, data)
 }
 
+func (Engine) IndexDocument(doc domain.IndexedDocument) error {
+	return IndexDocument(string(doc.ID), doc.Content, doc.ContentNoSpace)
+}
+
 // Search performs a query based on options
 func Search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchResult, error) {
 	mu.RLock()
@@ -183,6 +190,10 @@ func DeleteDocument(id string) error {
 		return fmt.Errorf("index is closed")
 	}
 	return index.Delete(id)
+}
+
+func (Engine) DeleteDocument(id domain.DocumentID) error {
+	return DeleteDocument(string(id))
 }
 
 // Reset closes, deletes, and re-initializes the index

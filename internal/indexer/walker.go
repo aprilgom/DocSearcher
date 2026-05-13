@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"hwp-searcher/internal/app"
 	"hwp-searcher/internal/domain"
 	"hwp-searcher/internal/parser"
 	"hwp-searcher/internal/search"
@@ -15,7 +16,15 @@ import (
 var (
 	IndexedCount uint64
 	IsIndexing   atomic.Bool
+	service      = app.NewService(app.Dependencies{
+		TextExtractor: parser.TextExtractor{},
+		DocumentIndex: search.Engine{},
+	})
 )
+
+func SetService(s *app.Service) {
+	service = s
+}
 
 func Start(root string) {
 	if IsIndexing.Load() {
@@ -79,15 +88,7 @@ func NormalizeNoSpaceContent(content string) string {
 
 // IndexFile indexes a single file
 func IndexFile(path string) {
-	content, err := parser.Parse(path)
-	if err != nil {
-		log.Printf("Failed to parse %s: %v", path, err)
-		return
-	}
-
-	contentNoSpace := NormalizeNoSpaceContent(content)
-
-	err = search.IndexDocument(path, content, contentNoSpace)
+	err := service.IndexFile(path)
 	if err != nil {
 		log.Printf("Failed to index %s: %v", path, err)
 		return
@@ -98,7 +99,7 @@ func IndexFile(path string) {
 
 // RemoveFile removes a file from the index
 func RemoveFile(path string) {
-	err := search.DeleteDocument(path)
+	err := service.RemoveFile(path)
 	if err != nil {
 		log.Println("Failed to delete index:", path, err)
 	} else {
