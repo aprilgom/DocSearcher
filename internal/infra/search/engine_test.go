@@ -11,6 +11,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
+	blevequery "github.com/blevesearch/bleve/v2/search/query"
 )
 
 func TestBuildIndexMappingUsesDomainSearchPolicy(t *testing.T) {
@@ -79,6 +80,84 @@ func TestDocumentCodecFieldMapUsesSchemaFields(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("fieldMap() = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuildSearchRequestQueryModeUsesQueryStringAndResultOptions(t *testing.T) {
+	schema := domain.IndexSchema{
+		ContentField:        "body_text",
+		ContentNoSpaceField: "body_text_compact",
+		PathField:           "source_path",
+	}
+	req := domain.SearchRequest{
+		Query: "홍길동",
+		Mode:  domain.SearchModeQuery,
+	}
+
+	got := buildSearchRequest(req, schema)
+
+	query, ok := got.Query.(*blevequery.QueryStringQuery)
+	if !ok {
+		t.Fatalf("Query type = %T, want *query.QueryStringQuery", got.Query)
+	}
+	if query.Query != req.Query {
+		t.Fatalf("Query.Query = %q, want %q", query.Query, req.Query)
+	}
+	if !reflect.DeepEqual(got.Fields, []string{schema.PathField, schema.ContentField}) {
+		t.Fatalf("Fields = %#v, want schema path/content fields", got.Fields)
+	}
+	if got.Highlight == nil {
+		t.Fatalf("Highlight is nil, want configured highlight")
+	}
+}
+
+func TestBuildSearchRequestExactModeTargetsContentField(t *testing.T) {
+	schema := domain.IndexSchema{
+		ContentField:        "body_text",
+		ContentNoSpaceField: "body_text_compact",
+		PathField:           "source_path",
+	}
+	req := domain.SearchRequest{
+		Query: "홍길동 보고서",
+		Mode:  domain.SearchModeExact,
+	}
+
+	got := buildSearchRequest(req, schema)
+
+	query, ok := got.Query.(*blevequery.MatchPhraseQuery)
+	if !ok {
+		t.Fatalf("Query type = %T, want *query.MatchPhraseQuery", got.Query)
+	}
+	if query.MatchPhrase != req.Query {
+		t.Fatalf("MatchPhrase = %q, want %q", query.MatchPhrase, req.Query)
+	}
+	if query.FieldVal != schema.ContentField {
+		t.Fatalf("FieldVal = %q, want content field %q", query.FieldVal, schema.ContentField)
+	}
+}
+
+func TestBuildSearchRequestIgnoreSpacesModeTargetsContentNoSpaceField(t *testing.T) {
+	schema := domain.IndexSchema{
+		ContentField:        "body_text",
+		ContentNoSpaceField: "body_text_compact",
+		PathField:           "source_path",
+	}
+	req := domain.SearchRequest{
+		Query: "홍길동",
+		Mode:  domain.SearchModeIgnoreSpaces,
+	}
+
+	got := buildSearchRequest(req, schema)
+
+	query, ok := got.Query.(*blevequery.MatchQuery)
+	if !ok {
+		t.Fatalf("Query type = %T, want *query.MatchQuery", got.Query)
+	}
+	if query.Match != req.Query {
+		t.Fatalf("Match = %q, want %q", query.Match, req.Query)
+	}
+	if query.FieldVal != schema.ContentNoSpaceField {
+		t.Fatalf("FieldVal = %q, want no-space field %q", query.FieldVal, schema.ContentNoSpaceField)
 	}
 }
 
