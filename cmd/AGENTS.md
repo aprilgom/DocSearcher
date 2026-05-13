@@ -10,13 +10,21 @@
 - `cmd/client/server.txt` - packaged/default server URL for the WebView client.
 
 ## Commands
-- Run server: `go run ./cmd/app`
-- Run WebView client: `go run ./cmd/client`
-- Test all packages: `go test ./...`
+```bash
+go mod download
+go run ./cmd/app
+go test ./internal/...
+go test $(go list ./... | grep -v '/cmd/client$')
+```
+- Run WebView client on Windows: `go run ./cmd/client`
 
 ## Platform Notes
 - `cmd/client` depends on `github.com/jchv/go-webview2` and Windows shell behavior.
-- On macOS, `go test ./...` may fail because the Windows WebView client does not build there. If only non-client code changed, verify the affected package set and report the `cmd/client` limitation explicitly.
+- Warning: on macOS, `go test ./...` may fail because the Windows WebView client does not build there. If only non-client code changed, verify the affected package set and report the `cmd/client` limitation explicitly.
+
+## Dependencies
+- See [../ARCHITECTURE.md](../ARCHITECTURE.md) for how `cmd/app` wires `internal/search`, `internal/watcher`, and `internal/server`.
+- See [../internal/AGENTS.md](../internal/AGENTS.md) before moving behavior out of entrypoints.
 
 ## Safety And Change Boundaries
 - Do not commit runtime output from the server, especially `hwp-index.bleve/` or local `config.json`.

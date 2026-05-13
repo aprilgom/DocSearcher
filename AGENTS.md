@@ -5,13 +5,15 @@
 - The root module is `hwp-searcher`; the local `goHwpTxt` module is replaced from `./goHwpTxt`.
 
 ## Commands
-- Setup dependencies: `go mod download`
-- Run server: `go run ./cmd/app`
-- Run WebView client: `go run ./cmd/client`
-- Test all packages: `go test ./...`
-- macOS/Linux verification without Windows client: `go test $(go list ./... | grep -v '/cmd/client$')`
-- Test local HWP parser module: `cd goHwpTxt && go test ./...`
-- Build server: `go build ./cmd/app`
+```bash
+go mod download
+go run ./cmd/app
+go test ./...
+go test $(go list ./... | grep -v '/cmd/client$')
+go build ./cmd/app
+```
+- Run Windows WebView client on Windows: `go run ./cmd/client`
+- Test local HWP parser module only when explicitly touching that dependency: `cd goHwpTxt && go test ./...`
 
 ## Navigation
 - `cmd/app` - search server entrypoint.
@@ -20,6 +22,11 @@
 - `internal/parser` - HWP/PDF text extraction.
 - `internal/search` - Bleve search engine.
 - `goHwpTxt` - local HWP/HWPX parser module.
+
+## Dependencies
+- See [ARCHITECTURE.md](ARCHITECTURE.md) for the runtime flow and dependency map.
+- See [cmd/AGENTS.md](cmd/AGENTS.md) and [internal/AGENTS.md](internal/AGENTS.md) before editing those modules.
+- `internal/parser` calls `goHwpTxt`; treat `goHwpTxt` as an external local replacement unless the task explicitly targets it.
 
 ## Git Conventions
 - Use Conventional Commits for commit messages: `<type>(<scope>): <subject>`.

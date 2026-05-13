@@ -13,14 +13,22 @@
 - `internal/watcher/watcher.go` - filesystem watching and re-indexing trigger.
 
 ## Commands
-- Test internal packages: `go test ./internal/...`
-- Run parser tests only: `go test ./internal/parser`
-- Run server from repo root: `go run ./cmd/app`
-- Full repo test: `go test ./...`
+```bash
+go mod download
+go test ./internal/...
+go test ./internal/parser
+go run ./cmd/app
+```
+- Full repo test when platform allows it: `go test ./...`
 
 ## Platform Notes
 - `go test ./internal/...` is the preferred macOS-safe verification for internal-only changes.
-- Full `go test ./...` may fail on macOS because `cmd/client` uses the Windows WebView2 client. Report that limitation if it prevents full verification.
+- Warning: full `go test ./...` may fail on macOS because `cmd/client` uses the Windows WebView2 client. Report that limitation if it prevents full verification.
+
+## Dependencies
+- See [../ARCHITECTURE.md](../ARCHITECTURE.md) for cross-module data flow.
+- `internal/server` depends on `internal/config`, `internal/search`, `internal/indexer`, `internal/watcher`, and `web/templates`.
+- `internal/indexer` depends on `internal/parser` and `internal/search`; parser behavior changes can affect indexed content and search results.
 
 ## Safety And Change Boundaries
 - Do not commit runtime data such as `config.json`, `hwp-index.bleve/`, or real documents under `goHwpTxt/testdata/`.

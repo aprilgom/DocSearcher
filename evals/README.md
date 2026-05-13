@@ -1,20 +1,17 @@
 # Codex Evals
 
 This directory tracks lightweight outcome evidence for Codex work on DocSearcher.
-It is intentionally docs/stdlib only: use the JSON files here as small ledgers
-that can be reviewed in PRs without adding a test framework or runtime dependency.
+It is intentionally docs/stdlib only.
 
 ## Current Baseline
 
-- Readiness score: 17/100
-- Readiness grade: Codex-Hostile
-- Scored at: 2026-05-13
-- Scope note: `goHwpTxt` is excluded from readiness scoring because it is a local
-  replace of an external HWP/HWPX parser package.
-- Weak outcome evidence: category G scored 1/5 because no agent eval directory or
-  metric file existed before this baseline.
+- 2026-05-13: 17/100, Codex-Hostile, category G 1/5.
+- Scope note: `goHwpTxt` is excluded because it is a local replace of an external
+  HWP/HWPX parser package.
 
-See the baseline JSON file in this directory for the machine-readable baseline.
+```bash
+python3 -m json.tool evals/codex-readiness-baseline.json
+```
 
 ## Representative Task Set
 
