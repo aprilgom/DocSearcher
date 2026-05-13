@@ -66,21 +66,35 @@ features should be designed against the Wails client.
 
 ### Implementation Tasks
 
+Server contracts:
+
 - [ ] Add domain types for document roots, relative paths, and logical document
   IDs.
 - [ ] Add server-side `document_roots` config.
 - [ ] Keep current watched-path behavior only where needed for compatibility.
+
+Indexing and search storage:
+
 - [ ] Change indexing to compute relative paths from configured roots.
 - [ ] Store `root_id`, `relative_path`, and optional `server_path` in Bleve.
+
+Search API and web UI:
+
 - [ ] Return search hits with logical path fields.
 - [ ] Update web result actions to pass `root_id` and `relative_path`.
+
+Wails desktop client:
+
+- [ ] Decide whether the Wails client replaces `cmd/client` in one migration or
+  coexists until Windows behavior is feature-complete.
 - [ ] Add Wails client support for resolving root mounts into local SMB paths.
 - [ ] Open files through OS-native shell/default app behavior.
 - [ ] Add "show in folder" behavior.
 - [ ] Add clear open failures for missing mounts, unavailable files, and denied
   permissions.
-- [ ] Decide whether the Wails client replaces `cmd/client` in one migration or
-  coexists until Windows behavior is feature-complete.
+
+Index reliability:
+
 - [ ] Add periodic rescan only if watcher testing under Samba shows missed
   events.
 
