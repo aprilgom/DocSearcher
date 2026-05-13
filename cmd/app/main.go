@@ -38,22 +38,23 @@ func (h fileHandler) RemoveFile(path string) {
 
 func main() {
 	// Initialize Search Index
-	err := search.Init("hwp-index.bleve")
+	searchEngine, err := search.NewEngine("hwp-index.bleve")
 	if err != nil {
 		log.Fatal("Failed to init index:", err)
 	}
+	defer searchEngine.Close()
 
-	fileIndexer := app.NewIndexer(parser.TextExtractor{}, search.Engine{})
+	fileIndexer := app.NewIndexer(parser.TextExtractor{}, searchEngine)
 	indexRunner := indexer.NewRunner(fileIndexer)
 	watchRegistry := watcher.Registry{StartIndexing: indexRunner.Start}
 	watchPaths := app.NewWatchPaths(config.Store{}, watchRegistry)
 	watcher.SetFileHandler(fileHandler{indexer: fileIndexer})
 
 	handlers := server.Handlers{
-		Searcher:   app.NewSearcher(search.Engine{}),
+		Searcher:   app.NewSearcher(searchEngine),
 		WatchPaths: watchPaths,
-		Stats:      app.NewStats(search.Engine{}, config.Store{}, indexRunner),
-		Resetter:   indexResetHandler{watchPaths: watchPaths, resetter: search.Engine{}},
+		Stats:      app.NewStats(searchEngine, config.Store{}, indexRunner),
+		Resetter:   indexResetHandler{watchPaths: watchPaths, resetter: searchEngine},
 	}
 
 	// Start Watcher

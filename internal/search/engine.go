@@ -15,28 +15,36 @@ import (
 	"github.com/blevesearch/bleve/v2/mapping"
 )
 
-type Engine struct{}
+type Engine struct {
+	indexPath string
+	index     bleve.Index
+	mu        sync.RWMutex
+}
 
-var (
-	index bleve.Index
-	mu    sync.RWMutex
-)
+func NewEngine(indexPath string) (*Engine, error) {
+	engine := &Engine{}
+	if err := engine.Init(indexPath); err != nil {
+		return nil, err
+	}
+	return engine, nil
+}
 
 // Init initializes the Bleve index with N-gram mapping
-func Init(indexPath string) error {
-	mu.Lock()
-	defer mu.Unlock()
+func (e *Engine) Init(indexPath string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
 	fmt.Printf("Initializing index at %s\n", indexPath)
+	e.indexPath = indexPath
 
 	var err error
 	if _, statErr := os.Stat(indexPath); os.IsNotExist(statErr) {
 		fmt.Println("Index does not exist, creating new...")
 		indexMapping := buildIndexMapping()
-		index, err = bleve.New(indexPath, indexMapping)
+		e.index, err = bleve.New(indexPath, indexMapping)
 	} else {
 		fmt.Println("Index exists, opening...")
-		index, err = bleve.Open(indexPath)
+		e.index, err = bleve.Open(indexPath)
 		// Auto-recovery: If open fails, try to recreate
 		if err != nil {
 			fmt.Printf("Failed to open index: %v. Attempting to recreate...\n", err)
@@ -45,7 +53,7 @@ func Init(indexPath string) error {
 				return fmt.Errorf("failed to remove corrupted index: %w", removeErr)
 			}
 			indexMapping := buildIndexMapping()
-			index, err = bleve.New(indexPath, indexMapping)
+			e.index, err = bleve.New(indexPath, indexMapping)
 		}
 	}
 
@@ -53,7 +61,7 @@ func Init(indexPath string) error {
 		return fmt.Errorf("failed to open/create index: %w", err)
 	}
 
-	if index == nil {
+	if e.index == nil {
 		return fmt.Errorf("bleve returned nil index with no error")
 	}
 
@@ -120,34 +128,33 @@ func buildIndexMapping() mapping.IndexMapping {
 	return indexMapping
 }
 
-// IndexDocument adds a document to the index
-func IndexDocument(id string, content string, contentNoSpace string) error {
-	mu.RLock()
-	defer mu.RUnlock()
+func (e *Engine) indexDocument(id string, content string, contentNoSpace string) error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 
 	// Robust nil check
-	if index == nil || (reflect.ValueOf(index).Kind() == reflect.Ptr && reflect.ValueOf(index).IsNil()) {
+	if e.index == nil || (reflect.ValueOf(e.index).Kind() == reflect.Ptr && reflect.ValueOf(e.index).IsNil()) {
 		return fmt.Errorf("index is closed or nil")
 	}
 
 	schema := domain.DefaultIndexSchema()
-	return index.Index(id, map[string]string{
+	return e.index.Index(id, map[string]string{
 		schema.ContentField:        content,
 		schema.ContentNoSpaceField: contentNoSpace,
 		schema.PathField:           id,
 	})
 }
 
-func (Engine) IndexDocument(doc domain.IndexedDocument) error {
-	return IndexDocument(string(doc.ID), doc.Content, doc.ContentNoSpace)
+func (e *Engine) IndexDocument(doc domain.IndexedDocument) error {
+	return e.indexDocument(string(doc.ID), doc.Content, doc.ContentNoSpace)
 }
 
-func (Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
+func (e *Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
 	exact := req.Mode == domain.SearchModeExact
 	ignoreSpaces := req.Mode == domain.SearchModeIgnoreSpaces
 	schema := domain.DefaultIndexSchema()
 
-	result, err := Search(req.Query, exact, ignoreSpaces)
+	result, err := e.search(req.Query, exact, ignoreSpaces)
 	if err != nil {
 		return domain.SearchResult{}, err
 	}
@@ -174,11 +181,10 @@ func (Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
 	}, nil
 }
 
-// Search performs a query based on options
-func Search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchResult, error) {
-	mu.RLock()
-	defer mu.RUnlock()
-	if index == nil {
+func (e *Engine) search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchResult, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.index == nil {
 		return nil, fmt.Errorf("index is closed")
 	}
 
@@ -200,49 +206,54 @@ func Search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchR
 
 	searchRequest.Fields = []string{schema.PathField, schema.ContentField}
 	searchRequest.Highlight = bleve.NewHighlight()
-	return index.Search(searchRequest)
+	return e.index.Search(searchRequest)
 }
 
-// Count returns the number of indexed documents
-func Count() (uint64, error) {
-	mu.RLock()
-	defer mu.RUnlock()
-	if index == nil {
+func (e *Engine) Count() (uint64, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.index == nil {
 		return 0, fmt.Errorf("index is closed")
 	}
-	return index.DocCount()
+	return e.index.DocCount()
 }
 
-// DeleteDocument removes a document from the index
-func DeleteDocument(id string) error {
-	mu.RLock()
-	defer mu.RUnlock()
-	if index == nil {
+func (e *Engine) deleteDocument(id string) error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.index == nil {
 		return fmt.Errorf("index is closed")
 	}
-	return index.Delete(id)
+	return e.index.Delete(id)
 }
 
-func (Engine) DeleteDocument(id domain.DocumentID) error {
-	return DeleteDocument(string(id))
+func (e *Engine) DeleteDocument(id domain.DocumentID) error {
+	return e.deleteDocument(string(id))
 }
 
-func (Engine) Count() (uint64, error) {
-	return Count()
+func (e *Engine) Reset() error {
+	return e.ResetIndex(e.indexPath)
 }
 
-func (Engine) Reset() error {
-	return Reset("hwp-index.bleve")
+func (e *Engine) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.index == nil {
+		return nil
+	}
+	err := e.index.Close()
+	e.index = nil
+	return err
 }
 
-// Reset closes, deletes, and re-initializes the index
-func Reset(indexPath string) error {
-	mu.Lock()
-	defer mu.Unlock()
+// ResetIndex closes, deletes, and re-initializes the index
+func (e *Engine) ResetIndex(indexPath string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
-	if index != nil {
-		index.Close()
-		index = nil
+	if e.index != nil {
+		e.index.Close()
+		e.index = nil
 	}
 	err := os.RemoveAll(indexPath)
 	if err != nil {
@@ -263,6 +274,7 @@ func Reset(indexPath string) error {
 	if err != nil {
 		return err
 	}
-	index = newIndex
+	e.indexPath = indexPath
+	e.index = newIndex
 	return nil
 }
