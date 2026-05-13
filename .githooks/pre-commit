@@ -2,6 +2,13 @@
 set -eu
 
 staged_go_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.go')
+staged_paths=$(git diff --cached --name-only --diff-filter=ACMR)
+
+blocked_paths=$(printf '%s\n' "$staged_paths" | grep -E '^(config\.json|hwp-index\.bleve/|goHwpTxt/testdata/)' || true)
+if [ -n "$blocked_paths" ]; then
+	printf 'blocked local runtime/test data in staged files:\n%s\n' "$blocked_paths" >&2
+	exit 1
+fi
 
 if [ -n "$staged_go_files" ]; then
 	unformatted=$(printf '%s\n' "$staged_go_files" | xargs gofmt -l)
