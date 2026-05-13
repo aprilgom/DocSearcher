@@ -1,3 +1,8 @@
 config.json
 hwp-index.bleve/
 goHwpTxt/testdata/
+.env
+.env.*
+*.pem
+*.key
+*.p12

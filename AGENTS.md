@@ -39,6 +39,10 @@
 ## Change Boundaries
 - Do not commit local runtime data: `config.json`, `hwp-index.bleve/`, or real test documents under `goHwpTxt/testdata/`.
 - Treat `goHwpTxt/pkg/hwp3/hnc2unicode_tables.go` as table data; avoid broad formatting-only edits there.
+- Note: `config.example.json` is the committed configuration contract; keep local machine paths only in ignored `config.json`.
+- Warning: never commit secrets, private keys, certificate bundles, or `.env*` files. Add placeholder examples instead.
+- Warning: destructive commands must not target user document folders. Index reset/recovery code should only remove known runtime index paths such as `hwp-index.bleve/`.
+- Important: preserve unrelated dirty worktree changes. Do not use `git reset --hard` or `git checkout --` unless explicitly requested.
 
 ## Working Rules
 - When asked to "PR 올려" or "올려", create the pull request after pushing the branch; do not stop at reporting the PR creation URL.
