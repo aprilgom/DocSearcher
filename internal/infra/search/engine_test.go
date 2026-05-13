@@ -80,6 +80,37 @@ func TestNewEngineCreatesIndependentIndexes(t *testing.T) {
 	}
 }
 
+func TestResetClearsIndexAndKeepsEngineUsable(t *testing.T) {
+	engine, err := NewEngine(filepath.Join(t.TempDir(), "reset.bleve"))
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	defer engine.Close()
+
+	first := domain.NewIndexedDocument(domain.NewDocument("before-reset.hwp", "초기 문서"))
+	if err := engine.IndexDocument(first); err != nil {
+		t.Fatalf("IndexDocument before reset: %v", err)
+	}
+	if count, err := engine.Count(); err != nil || count != 1 {
+		t.Fatalf("Count before reset = %d, %v; want 1, nil", count, err)
+	}
+
+	if err := engine.Reset(); err != nil {
+		t.Fatalf("Reset: %v", err)
+	}
+	if count, err := engine.Count(); err != nil || count != 0 {
+		t.Fatalf("Count after reset = %d, %v; want 0, nil", count, err)
+	}
+
+	second := domain.NewIndexedDocument(domain.NewDocument("after-reset.hwp", "재색인 문서"))
+	if err := engine.IndexDocument(second); err != nil {
+		t.Fatalf("IndexDocument after reset: %v", err)
+	}
+	if count, err := engine.Count(); err != nil || count != 1 {
+		t.Fatalf("Count after reindex = %d, %v; want 1, nil", count, err)
+	}
+}
+
 func TestSearchSupportsQueryModes(t *testing.T) {
 	engine, err := NewEngine(filepath.Join(t.TempDir(), "search.bleve"))
 	if err != nil {
