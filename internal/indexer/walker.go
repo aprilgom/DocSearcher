@@ -1,6 +1,8 @@
 package indexer
 
 import (
+	"hwp-searcher/internal/app"
+	"hwp-searcher/internal/domain"
 	"hwp-searcher/internal/parser"
 	"hwp-searcher/internal/search"
 	"log"
@@ -14,7 +16,18 @@ import (
 var (
 	IndexedCount uint64
 	IsIndexing   atomic.Bool
+	fileIndexer  = app.NewIndexer(parser.TextExtractor{}, search.Engine{})
 )
+
+func SetIndexer(indexer app.Indexer) {
+	fileIndexer = indexer
+}
+
+type Status struct{}
+
+func (Status) IsIndexing() bool {
+	return IsIndexing.Load()
+}
 
 func Start(root string) {
 	if IsIndexing.Load() {
@@ -40,11 +53,8 @@ func Start(root string) {
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() {
-				ext := strings.ToLower(filepath.Ext(path))
-				if ext == ".hwp" || ext == ".pdf" {
-					jobs <- path
-				}
+			if !info.IsDir() && IsSupportedDocumentFile(path) {
+				jobs <- path
 			}
 			return nil
 		})
@@ -65,21 +75,23 @@ func worker(jobs <-chan string, wg *sync.WaitGroup) {
 	}
 }
 
-// IndexFile indexes a single file
-func IndexFile(path string) {
-	content, err := parser.Parse(path)
-	if err != nil {
-		log.Printf("Failed to parse %s: %v", path, err)
-		return
+func IsSupportedDocumentFile(path string) bool {
+	name := filepath.Base(path)
+	if strings.Contains(name, "~$") || strings.HasSuffix(strings.ToLower(name), ".tmp") {
+		return false
 	}
 
-	// Generate No-Space Content
-	contentNoSpace := strings.ReplaceAll(content, " ", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\n", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\t", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\r", "")
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".hwp" || ext == ".hwpx" || ext == ".pdf"
+}
 
-	err = search.IndexDocument(path, content, contentNoSpace)
+func NormalizeNoSpaceContent(content string) string {
+	return domain.NormalizeNoSpaceContent(content)
+}
+
+// IndexFile indexes a single file
+func IndexFile(path string) {
+	err := fileIndexer.IndexFile(path)
 	if err != nil {
 		log.Printf("Failed to index %s: %v", path, err)
 		return
@@ -90,7 +102,7 @@ func IndexFile(path string) {
 
 // RemoveFile removes a file from the index
 func RemoveFile(path string) {
-	err := search.DeleteDocument(path)
+	err := fileIndexer.RemoveFile(path)
 	if err != nil {
 		log.Println("Failed to delete index:", path, err)
 	} else {

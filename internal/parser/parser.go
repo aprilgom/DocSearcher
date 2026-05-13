@@ -24,6 +24,12 @@ func Parse(path string) (string, error) {
 	}
 }
 
+type TextExtractor struct{}
+
+func (TextExtractor) ExtractText(path string) (string, error) {
+	return Parse(path)
+}
+
 func parseHWP(path string) (string, error) {
 	return goHwpTxt.ExtractText(path)
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"html/template"
+	"hwp-searcher/internal/app"
 	"hwp-searcher/internal/config"
 	"hwp-searcher/internal/indexer"
 	"hwp-searcher/internal/search"
@@ -12,6 +13,24 @@ import (
 	"strings"
 	"time"
 )
+
+type Handlers struct {
+	Searcher   app.Searcher
+	WatchPaths app.WatchPaths
+	Stats      app.Stats
+	Resetter   app.IndexResetter
+}
+
+var handlers = Handlers{
+	Searcher:   app.NewSearcher(search.Engine{}),
+	WatchPaths: app.NewWatchPaths(config.Store{}, watcher.Registry{StartIndexing: indexer.Start}),
+	Stats:      app.NewStats(search.Engine{}, config.Store{}, indexer.Status{}),
+	Resetter:   search.Engine{},
+}
+
+func SetHandlers(h Handlers) {
+	handlers = h
+}
 
 func Start(port string) {
 	http.HandleFunc("/", homeHandler)
@@ -40,7 +59,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	nospace := r.URL.Query().Get("nospace") == "true"
 
 	start := time.Now()
-	res, err := search.Search(query, exact, nospace)
+	res, err := handlers.Searcher.Search(query, exact, nospace)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -57,18 +76,8 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, hit := range res.Hits {
-		// Highlight
-		fragment := ""
-		if len(hit.Fragments["content"]) > 0 {
-			fragment = hit.Fragments["content"][0]
-		}
-		// If searching in nospace, highlight might be in content_nospace field
-		if nospace && len(hit.Fragments["content_nospace"]) > 0 {
-			fragment = hit.Fragments["content_nospace"][0]
-		}
-
 		// Escape backslashes for JavaScript string
-		escapedPath := strings.ReplaceAll(hit.ID, "\\", "\\\\")
+		escapedPath := strings.ReplaceAll(string(hit.ID), "\\", "\\\\")
 
 		fmt.Fprintf(w, `
 			<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition">
@@ -77,13 +86,13 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 				<button class="mt-2 text-xs text-indigo-600 cursor-pointer hover:underline bg-transparent border-none p-0" 
 					onclick="triggerOpen('%s')">Open File</button>
 			</div>
-		`, hit.ID, fragment, escapedPath)
+		`, hit.ID, hit.Fragment, escapedPath)
 	}
 }
 
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	// Return list of watched paths as HTML list items
-	for _, path := range config.Current.WatchedPaths {
+	for _, path := range handlers.WatchPaths.List() {
 		fmt.Fprintf(w, `
 			<li class="flex justify-between items-center bg-gray-50 p-2 rounded">
 				<span class="text-sm text-gray-700 truncate">%s</span>
@@ -106,11 +115,9 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "POST" {
-		config.AddPath(path)
-		watcher.AddPath(path)
+		_ = handlers.WatchPaths.Add(path)
 	} else if r.Method == "DELETE" {
-		config.RemovePath(path)
-		watcher.RemovePath(path)
+		_ = handlers.WatchPaths.Remove(path)
 	}
 
 	// Re-render the list
@@ -118,12 +125,12 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
-	count, _ := search.Count()
+	stats, _ := handlers.Stats.Current()
 	status := "Idle"
-	if indexer.IsIndexing.Load() {
+	if stats.Indexing {
 		status = "Indexing..."
 	}
-	fmt.Fprintf(w, "<span>%d docs | %d watched | %s</span>", count, len(config.Current.WatchedPaths), status)
+	fmt.Fprintf(w, "<span>%d docs | %d watched | %s</span>", stats.DocumentCount, stats.WatchedPathCount, status)
 }
 
 func resetHandler(w http.ResponseWriter, r *http.Request) {
@@ -131,15 +138,10 @@ func resetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := search.Reset("hwp-index.bleve")
+	err := handlers.WatchPaths.ResetIndex(handlers.Resetter)
 	if err != nil {
 		fmt.Fprintf(w, "<div class='text-red-500'>Reset failed: %v</div>", err)
 		return
-	}
-
-	// Re-index all watched paths
-	for _, path := range config.Current.WatchedPaths {
-		indexer.Start(path)
 	}
 
 	fmt.Fprint(w, "<div class='text-green-600'>Index reset! Re-indexing started...</div>")

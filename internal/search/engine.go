@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"hwp-searcher/internal/domain"
 	"os"
 	"reflect"
 	"sync"
@@ -13,6 +14,8 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 )
+
+type Engine struct{}
 
 var (
 	index bleve.Index
@@ -137,6 +140,41 @@ func IndexDocument(id string, content string, contentNoSpace string) error {
 	return index.Index(id, data)
 }
 
+func (Engine) IndexDocument(doc domain.IndexedDocument) error {
+	return IndexDocument(string(doc.ID), doc.Content, doc.ContentNoSpace)
+}
+
+func (Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
+	exact := req.Mode == domain.SearchModeExact
+	ignoreSpaces := req.Mode == domain.SearchModeIgnoreSpaces
+
+	result, err := Search(req.Query, exact, ignoreSpaces)
+	if err != nil {
+		return domain.SearchResult{}, err
+	}
+
+	hits := make([]domain.SearchHit, 0, len(result.Hits))
+	for _, hit := range result.Hits {
+		fragment := ""
+		if len(hit.Fragments["content"]) > 0 {
+			fragment = hit.Fragments["content"][0]
+		}
+		if ignoreSpaces && len(hit.Fragments["content_nospace"]) > 0 {
+			fragment = hit.Fragments["content_nospace"][0]
+		}
+
+		hits = append(hits, domain.SearchHit{
+			ID:       domain.DocumentID(hit.ID),
+			Fragment: fragment,
+		})
+	}
+
+	return domain.SearchResult{
+		Total: result.Total,
+		Hits:  hits,
+	}, nil
+}
+
 // Search performs a query based on options
 func Search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchResult, error) {
 	mu.RLock()
@@ -183,6 +221,18 @@ func DeleteDocument(id string) error {
 		return fmt.Errorf("index is closed")
 	}
 	return index.Delete(id)
+}
+
+func (Engine) DeleteDocument(id domain.DocumentID) error {
+	return DeleteDocument(string(id))
+}
+
+func (Engine) Count() (uint64, error) {
+	return Count()
+}
+
+func (Engine) Reset() error {
+	return Reset("hwp-index.bleve")
 }
 
 // Reset closes, deletes, and re-initializes the index
