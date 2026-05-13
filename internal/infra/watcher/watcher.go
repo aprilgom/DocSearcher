@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"errors"
 	"hwp-searcher/internal/domain"
 	"log"
 	"os"
@@ -15,14 +16,22 @@ type FileHandler interface {
 }
 
 type Registry struct {
+	Watcher       *Watcher
 	StartIndexing func(path string)
 }
 
 var (
-	watcher     *fsnotify.Watcher
-	done        chan bool
-	fileHandler FileHandler = noopFileHandler{}
+	ErrNotStarted = errors.New("watcher not started")
+	ErrClosed     = errors.New("watcher closed")
 )
+
+var defaultWatcher = New(noopFileHandler{})
+
+type Watcher struct {
+	watcher     *fsnotify.Watcher
+	fileHandler FileHandler
+	closed      bool
+}
 
 type noopFileHandler struct{}
 
@@ -30,31 +39,46 @@ func (noopFileHandler) IndexFile(path string) {}
 
 func (noopFileHandler) RemoveFile(path string) {}
 
-func SetFileHandler(handler FileHandler) {
+func New(handler FileHandler) *Watcher {
 	if handler == nil {
-		fileHandler = noopFileHandler{}
-		return
+		handler = noopFileHandler{}
 	}
-	fileHandler = handler
+	return &Watcher{fileHandler: handler}
 }
 
-func Start() {
-	var err error
-	watcher, err = fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal(err)
+func SetFileHandler(handler FileHandler) {
+	defaultWatcher.fileHandler = handler
+	if defaultWatcher.fileHandler == nil {
+		defaultWatcher.fileHandler = noopFileHandler{}
 	}
-	done = make(chan bool)
+}
+
+func Start() error {
+	return defaultWatcher.Start()
+}
+
+func (w *Watcher) Start() error {
+	if w.closed {
+		return ErrClosed
+	}
+	if w.watcher != nil {
+		return nil
+	}
+	fsWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	w.watcher = fsWatcher
 
 	go func() {
 		for {
 			select {
-			case event, ok := <-watcher.Events:
+			case event, ok := <-fsWatcher.Events:
 				if !ok {
 					return
 				}
-				handleEvent(event)
-			case err, ok := <-watcher.Errors:
+				w.handleEvent(event)
+			case err, ok := <-fsWatcher.Errors:
 				if !ok {
 					return
 				}
@@ -63,16 +87,33 @@ func Start() {
 		}
 	}()
 
+	return nil
 }
 
-func addPath(root string) error {
+func (w *Watcher) Close() error {
+	if w.watcher == nil {
+		return nil
+	}
+	err := w.watcher.Close()
+	w.watcher = nil
+	w.closed = true
+	return err
+}
+
+func (w *Watcher) addPath(root string) error {
+	if w.closed {
+		return ErrClosed
+	}
+	if w.watcher == nil {
+		return ErrNotStarted
+	}
 	// Recursive add
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
-			err = watcher.Add(path)
+			err = w.watcher.Add(path)
 			if err != nil {
 				log.Println("Failed to watch:", path, err)
 			} else {
@@ -93,14 +134,29 @@ func AddPath(root string) {
 }
 
 func RemovePath(root string) {
-	// We can't easily remove recursive watchers without walking again
-	// But simply removing the root from config prevents it from being watched next time
-	// For now, we just remove the root watcher
-	watcher.Remove(root)
+	_ = defaultWatcher.RemovePath(root)
+}
+
+func (w *Watcher) AddPath(root string) error {
+	return w.addPath(root)
+}
+
+func (w *Watcher) RemovePath(root string) error {
+	if w.closed {
+		return ErrClosed
+	}
+	if w.watcher == nil {
+		return ErrNotStarted
+	}
+	return w.watcher.Remove(root)
 }
 
 func (r Registry) AddPath(path domain.WatchedPath) error {
-	if err := addPath(string(path)); err != nil {
+	w := r.Watcher
+	if w == nil {
+		w = defaultWatcher
+	}
+	if err := w.AddPath(string(path)); err != nil {
 		return err
 	}
 	if r.StartIndexing != nil {
@@ -109,17 +165,24 @@ func (r Registry) AddPath(path domain.WatchedPath) error {
 	return nil
 }
 
-func (Registry) RemovePath(path domain.WatchedPath) error {
-	RemovePath(string(path))
-	return nil
+func (r Registry) RemovePath(path domain.WatchedPath) error {
+	w := r.Watcher
+	if w == nil {
+		w = defaultWatcher
+	}
+	return w.RemovePath(string(path))
 }
 
 func handleEvent(event fsnotify.Event) {
+	defaultWatcher.handleEvent(event)
+}
+
+func (w *Watcher) handleEvent(event fsnotify.Event) {
 	if event.Op&fsnotify.Create == fsnotify.Create {
 		info, err := os.Stat(event.Name)
 		if err == nil && info.IsDir() {
 			// If directory created, watch it
-			_ = addPath(event.Name)
+			_ = w.addPath(event.Name)
 			return
 		}
 	}
@@ -131,12 +194,12 @@ func handleEvent(event fsnotify.Event) {
 
 	if event.Op&fsnotify.Create == fsnotify.Create {
 		log.Println("File created:", event.Name)
-		fileHandler.IndexFile(event.Name)
+		w.fileHandler.IndexFile(event.Name)
 	}
 
 	if event.Op&fsnotify.Write == fsnotify.Write {
 		log.Println("File modified:", event.Name)
-		fileHandler.IndexFile(event.Name)
+		w.fileHandler.IndexFile(event.Name)
 	}
 
 	if event.Op&fsnotify.Remove == fsnotify.Remove || event.Op&fsnotify.Rename == fsnotify.Rename {
@@ -144,7 +207,7 @@ func handleEvent(event fsnotify.Event) {
 		// We can't easily check if it was a dir or file since it's gone
 		// But we can try to remove from index anyway
 		log.Println("File removed:", event.Name)
-		fileHandler.RemoveFile(event.Name)
+		w.fileHandler.RemoveFile(event.Name)
 		// If it was a dir, fsnotify removes the watch automatically
 	}
 }
