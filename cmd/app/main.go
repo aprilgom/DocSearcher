@@ -46,13 +46,14 @@ func main() {
 	fileIndexer := usecase.NewIndexer(parser.TextExtractor{}, searchEngine)
 	indexRunner := usecase.NewIndexRunner(fileIndexer.IndexFile)
 	watchRegistry := watcher.Registry{StartIndexing: indexRunner.Start}
-	watchPaths := usecase.NewWatchPaths(config.Store{}, watchRegistry)
+	configStore := config.NewStore(config.ConfigFile)
+	watchPaths := usecase.NewWatchPaths(configStore, watchRegistry)
 	watcher.SetFileHandler(fileHandler{indexer: fileIndexer})
 
 	handlers := server.Handlers{
 		Searcher:   usecase.NewSearcher(searchEngine),
 		WatchPaths: watchPaths,
-		Stats:      usecase.NewStats(searchEngine, config.Store{}, indexRunner),
+		Stats:      usecase.NewStats(searchEngine, configStore, indexRunner),
 		Resetter:   indexResetHandler{watchPaths: watchPaths, resetter: searchEngine},
 	}
 

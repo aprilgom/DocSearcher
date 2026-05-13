@@ -16,10 +16,18 @@ type Config struct {
 
 var Current *Config
 
-type Store struct{}
+type Store struct {
+	path    string
+	current *Config
+}
 
-func (Store) Load() error {
-	return Load()
+func NewStore(path string) Store {
+	return Store{
+		path: path,
+		current: &Config{
+			WatchedPaths: []string{},
+		},
+	}
 }
 
 func init() {
@@ -29,72 +37,106 @@ func init() {
 }
 
 func Load() error {
-	Current.mu.Lock()
-	defer Current.mu.Unlock()
+	return Store{}.Load()
+}
 
-	data, err := os.ReadFile(ConfigFile)
+func Save() error {
+	return Store{}.save()
+}
+
+func AddPath(path string) error {
+	return Store{}.addPath(path)
+}
+
+func RemovePath(path string) error {
+	return Store{}.removePath(path)
+}
+
+func (s Store) configPath() string {
+	if s.path != "" {
+		return s.path
+	}
+	return ConfigFile
+}
+
+func (s Store) config() *Config {
+	if s.current != nil {
+		return s.current
+	}
+	return Current
+}
+
+func (s Store) Load() error {
+	current := s.config()
+	current.mu.Lock()
+	defer current.mu.Unlock()
+
+	data, err := os.ReadFile(s.configPath())
 	if os.IsNotExist(err) {
 		return nil // No config file yet, use defaults
 	}
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, Current)
+	return json.Unmarshal(data, current)
 }
 
-func Save() error {
-	Current.mu.Lock()
-	defer Current.mu.Unlock()
+func (s Store) save() error {
+	current := s.config()
+	current.mu.Lock()
+	defer current.mu.Unlock()
 
-	data, err := json.MarshalIndent(Current, "", "  ")
+	data, err := json.MarshalIndent(current, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(ConfigFile, data, 0644)
+	return os.WriteFile(s.configPath(), data, 0644)
 }
 
-func AddPath(path string) error {
-	Current.mu.Lock()
-	// Check if already exists
-	for _, p := range Current.WatchedPaths {
+func (s Store) addPath(path string) error {
+	current := s.config()
+	current.mu.Lock()
+	for _, p := range current.WatchedPaths {
 		if p == path {
-			Current.mu.Unlock()
+			current.mu.Unlock()
 			return nil
 		}
 	}
-	Current.WatchedPaths = append(Current.WatchedPaths, path)
-	Current.mu.Unlock()
-	return Save()
+	current.WatchedPaths = append(current.WatchedPaths, path)
+	current.mu.Unlock()
+	return s.save()
 }
 
-func RemovePath(path string) error {
-	Current.mu.Lock()
+func (s Store) removePath(path string) error {
+	current := s.config()
+	current.mu.Lock()
 	newPaths := []string{}
-	for _, p := range Current.WatchedPaths {
+	for _, p := range current.WatchedPaths {
 		if p != path {
 			newPaths = append(newPaths, p)
 		}
 	}
-	Current.WatchedPaths = newPaths
-	Current.mu.Unlock()
-	return Save()
+	current.WatchedPaths = newPaths
+	current.mu.Unlock()
+	return s.save()
 }
 
-func (Store) WatchedPaths() []domain.WatchedPath {
-	Current.mu.Lock()
-	defer Current.mu.Unlock()
+func (s Store) WatchedPaths() []domain.WatchedPath {
+	current := s.config()
+	current.mu.Lock()
+	defer current.mu.Unlock()
 
-	paths := make([]domain.WatchedPath, 0, len(Current.WatchedPaths))
-	for _, path := range Current.WatchedPaths {
+	paths := make([]domain.WatchedPath, 0, len(current.WatchedPaths))
+	for _, path := range current.WatchedPaths {
 		paths = append(paths, domain.WatchedPath(path))
 	}
 	return paths
 }
 
-func (Store) AddPath(path domain.WatchedPath) error {
-	return AddPath(string(path))
+func (s Store) AddPath(path domain.WatchedPath) error {
+	return s.addPath(string(path))
 }
 
-func (Store) RemovePath(path domain.WatchedPath) error {
-	return RemovePath(string(path))
+func (s Store) RemovePath(path domain.WatchedPath) error {
+	return s.removePath(string(path))
 }
