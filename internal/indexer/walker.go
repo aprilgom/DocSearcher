@@ -1,10 +1,7 @@
 package indexer
 
 import (
-	"hwp-searcher/internal/app"
 	"hwp-searcher/internal/domain"
-	"hwp-searcher/internal/parser"
-	"hwp-searcher/internal/search"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,14 +10,22 @@ import (
 	"sync/atomic"
 )
 
+type FileIndexer interface {
+	IndexFile(path string) error
+	RemoveFile(path string) error
+}
+
 var (
 	IndexedCount uint64
 	IsIndexing   atomic.Bool
-	fileIndexer  = app.NewIndexer(parser.TextExtractor{}, search.Engine{})
 )
 
-func SetIndexer(indexer app.Indexer) {
-	fileIndexer = indexer
+type Runner struct {
+	fileIndexer FileIndexer
+}
+
+func NewRunner(fileIndexer FileIndexer) Runner {
+	return Runner{fileIndexer: fileIndexer}
 }
 
 type Status struct{}
@@ -29,7 +34,11 @@ func (Status) IsIndexing() bool {
 	return IsIndexing.Load()
 }
 
-func Start(root string) {
+func (Runner) IsIndexing() bool {
+	return IsIndexing.Load()
+}
+
+func (r Runner) Start(root string) {
 	if IsIndexing.Load() {
 		log.Println("Already indexing")
 		return
@@ -45,7 +54,7 @@ func Start(root string) {
 		// Start workers
 		for i := 0; i < 4; i++ { // 4 workers
 			wg.Add(1)
-			go worker(jobs, &wg)
+			go r.worker(jobs, &wg)
 		}
 
 		// Walk files
@@ -68,10 +77,10 @@ func Start(root string) {
 	}()
 }
 
-func worker(jobs <-chan string, wg *sync.WaitGroup) {
+func (r Runner) worker(jobs <-chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for path := range jobs {
-		IndexFile(path)
+		r.IndexFile(path)
 	}
 }
 
@@ -90,8 +99,8 @@ func NormalizeNoSpaceContent(content string) string {
 }
 
 // IndexFile indexes a single file
-func IndexFile(path string) {
-	err := fileIndexer.IndexFile(path)
+func (r Runner) IndexFile(path string) {
+	err := r.fileIndexer.IndexFile(path)
 	if err != nil {
 		log.Printf("Failed to index %s: %v", path, err)
 		return
@@ -101,8 +110,8 @@ func IndexFile(path string) {
 }
 
 // RemoveFile removes a file from the index
-func RemoveFile(path string) {
-	err := fileIndexer.RemoveFile(path)
+func (r Runner) RemoveFile(path string) {
+	err := r.fileIndexer.RemoveFile(path)
 	if err != nil {
 		log.Println("Failed to delete index:", path, err)
 	} else {
