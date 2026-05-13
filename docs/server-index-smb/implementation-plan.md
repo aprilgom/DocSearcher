@@ -63,6 +63,11 @@ features should be designed against the Wails client.
   replaces it.
 - [x] Reset and rebuild the Bleve index instead of migrating existing documents
   in place.
+- [x] Accept existing `watched_paths` for one transition release, but make
+  `document_roots` the new config contract.
+- [x] Support Windows UNC mounts as well as drive-letter mounts.
+- [x] Store `root_id` and `relative_path` in Bleve; keep `server_path`
+  server-only and optional.
 
 ### Implementation Tasks
 
@@ -70,24 +75,37 @@ Server contracts:
 
 - [ ] Add domain types for document roots, relative paths, and logical document
   IDs.
+- [ ] Add validation for `root_id`, `relative_path`, and logical document ID
+  parsing.
 - [ ] Add server-side `document_roots` config.
-- [ ] Keep current watched-path behavior only where needed for compatibility.
+- [ ] Read legacy `watched_paths` as transition input and normalize them into
+  generated document roots where possible.
+- [ ] Keep current watched-path behavior only where needed for compatibility,
+  while writing new configuration as `document_roots`.
 
 Indexing and search storage:
 
 - [ ] Change indexing to compute relative paths from configured roots.
 - [ ] Store `root_id`, `relative_path`, and optional `server_path` in Bleve.
+- [ ] Ensure watcher create/write/delete events compute IDs from root context,
+  not raw event paths.
+- [ ] Handle overlapping roots by choosing the most specific matching root.
 
 Search API and web UI:
 
 - [ ] Return search hits with logical path fields.
 - [ ] Update web result actions to pass `root_id` and `relative_path`.
+- [ ] Display root name and relative path instead of raw server absolute paths.
+- [ ] Keep browser-only result actions separate from desktop-client open/reveal
+  actions.
 
 Wails desktop client:
 
-- [ ] Decide whether the Wails client replaces `cmd/client` in one migration or
-  coexists until Windows behavior is feature-complete.
+- [ ] Let Wails coexist with `cmd/client` until Windows behavior is
+  feature-complete, then retire `cmd/client` in a separate cleanup.
 - [ ] Add Wails client support for resolving root mounts into local SMB paths.
+- [ ] Support Windows drive-letter mounts and UNC mounts.
+- [ ] Reject path joins that escape the configured mount root.
 - [ ] Open files through OS-native shell/default app behavior.
 - [ ] Add "show in folder" behavior.
 - [ ] Add clear open failures for missing mounts, unavailable files, and denied
@@ -111,13 +129,23 @@ absolute paths as IDs, so the simpler and safer migration is:
 During a transition, existing `watched_paths` config can be treated as legacy
 input. New deployments should use `document_roots`.
 
-## Open Questions
+Transition rules:
 
-- Should `document_roots` fully replace `watched_paths`, or should both be
-  accepted for one release?
-- Should the server store `server_path` in Bleve, or reconstruct it from
-  `root_id` and `relative_path` when needed?
-- Should client mounts accept UNC paths like `\\docserver\documents` in addition
-  to drive-letter paths?
-- How should the UI expose mount setup when a desktop client has no mapping for a
+- If only `watched_paths` exists, load each path as a generated document root
+  with a stable derived ID, then prompt operators to save explicit
+  `document_roots`.
+- If both `document_roots` and `watched_paths` exist, prefer
+  `document_roots`.
+- After one release, remove writes to `watched_paths`; later removal of read
+  compatibility can be handled as a separate cleanup.
+- Rebuild `hwp-index.bleve` whenever changing from absolute-path IDs to logical
+  IDs.
+
+## Remaining Open Questions
+
+- What naming convention should generated root IDs use for legacy
+  `watched_paths` when no operator-supplied ID exists?
+- Should server diagnostics expose `server_path` to admins through a protected
+  endpoint, or only logs?
+- How should the UI guide desktop users to create a missing mount mapping for a
   returned `root_id`?
