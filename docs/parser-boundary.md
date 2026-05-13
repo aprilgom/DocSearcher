@@ -6,18 +6,18 @@ format internals.
 
 ## Boundary Owner
 
-`internal/parser` owns file-extension dispatch and converts supported files into
+`internal/infra/parser` owns file-extension dispatch and converts supported files into
 plain text.
 
 | Extension | Adapter | Dependency |
 | --- | --- | --- |
-| `.hwp` | `internal/parser.parseHWP` | `goHwpTxt.ExtractText` |
-| `.hwpx` | `internal/parser.parseHWP` | `goHwpTxt.ExtractText` |
-| `.pdf` | `internal/parser.parsePDF` | `github.com/ledongthuc/pdf` |
+| `.hwp` | `internal/infra/parser.parseHWP` | `goHwpTxt.ExtractText` |
+| `.hwpx` | `internal/infra/parser.parseHWP` | `goHwpTxt.ExtractText` |
+| `.pdf` | `internal/infra/parser.parsePDF` | `github.com/ledongthuc/pdf` |
 
 `goHwpTxt` is a local replacement module, but it should be reviewed as an
 external parser dependency. Application changes should start in
-`internal/parser` unless the requested behavior explicitly targets HWP/HWPX
+`internal/infra/parser` unless the requested behavior explicitly targets HWP/HWPX
 parser internals.
 
 ## Parser-Facing Contract
@@ -31,8 +31,8 @@ parser internals.
 | Unsupported extension | Non-nil `unsupported file type` error |
 
 The parser layer does not index, normalize spacing, walk watched folders, watch
-files, or render UI. Those responsibilities belong to `internal/app`,
-`internal/domain`, `internal/scanner`, `internal/watcher`, and
+files, or render UI. Those responsibilities belong to `internal/usecase`,
+`internal/domain`, `internal/infra/scanner`, `internal/infra/watcher`, and
 `internal/server`.
 
 ## Fixture Expectations
@@ -44,14 +44,14 @@ When parser behavior changes, prefer fixture coverage for:
 
 | Behavior | Expected evidence |
 | --- | --- |
-| Extension dispatch | Tests in `internal/parser` for supported and unsupported extensions |
-| HWP/HWPX extraction changes | Focused tests in `goHwpTxt` plus `internal/parser` integration coverage when the app contract changes |
+| Extension dispatch | Tests in `internal/infra/parser` for supported and unsupported extensions |
+| HWP/HWPX extraction changes | Focused tests in `goHwpTxt` plus `internal/infra/parser` integration coverage when the app contract changes |
 | PDF extraction changes | Tests or sample fixtures that prove text extraction errors are surfaced |
 | Empty text handling | Explicit assertion for whether empty text is accepted or rejected by the app layer |
 
 ## Change Guidance
 
-1. Keep app-facing parser behavior in `internal/parser`.
+1. Keep app-facing parser behavior in `internal/infra/parser`.
 2. Change `goHwpTxt` only when the HWP/HWPX format behavior itself must change.
 3. After touching `goHwpTxt`, run both root package tests and
    `cd goHwpTxt && go test ./...`.

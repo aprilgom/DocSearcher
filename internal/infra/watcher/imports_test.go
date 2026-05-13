@@ -24,8 +24,8 @@ func TestWatcherDoesNotImportConfig(t *testing.T) {
 			t.Fatalf("parse %s: %v", file, err)
 		}
 		for _, imported := range parsed.Imports {
-			if strings.Trim(imported.Path.Value, `"`) == "hwp-searcher/internal/config" {
-				t.Fatalf("%s imports internal/config; config must be injected outside watcher", file)
+			if strings.Trim(imported.Path.Value, `"`) == "hwp-searcher/internal/infra/config" {
+				t.Fatalf("%s imports internal/infra/config; config must be injected outside watcher", file)
 			}
 		}
 	}

@@ -1,22 +1,22 @@
 package main
 
 import (
-	"hwp-searcher/internal/app"
-	"hwp-searcher/internal/config"
-	"hwp-searcher/internal/parser"
-	"hwp-searcher/internal/search"
+	"hwp-searcher/internal/infra/config"
+	"hwp-searcher/internal/infra/parser"
+	"hwp-searcher/internal/infra/search"
+	"hwp-searcher/internal/infra/watcher"
 	"hwp-searcher/internal/server"
-	"hwp-searcher/internal/watcher"
+	"hwp-searcher/internal/usecase"
 	"log"
 )
 
 type fileHandler struct {
-	indexer app.Indexer
+	indexer usecase.Indexer
 }
 
 type indexResetHandler struct {
-	watchPaths app.WatchPaths
-	resetter   app.IndexResetter
+	watchPaths usecase.WatchPaths
+	resetter   usecase.IndexResetter
 }
 
 func (h indexResetHandler) ResetIndex() error {
@@ -43,16 +43,16 @@ func main() {
 	}
 	defer searchEngine.Close()
 
-	fileIndexer := app.NewIndexer(parser.TextExtractor{}, searchEngine)
-	indexRunner := app.NewIndexRunner(fileIndexer.IndexFile)
+	fileIndexer := usecase.NewIndexer(parser.TextExtractor{}, searchEngine)
+	indexRunner := usecase.NewIndexRunner(fileIndexer.IndexFile)
 	watchRegistry := watcher.Registry{StartIndexing: indexRunner.Start}
-	watchPaths := app.NewWatchPaths(config.Store{}, watchRegistry)
+	watchPaths := usecase.NewWatchPaths(config.Store{}, watchRegistry)
 	watcher.SetFileHandler(fileHandler{indexer: fileIndexer})
 
 	handlers := server.Handlers{
-		Searcher:   app.NewSearcher(searchEngine),
+		Searcher:   usecase.NewSearcher(searchEngine),
 		WatchPaths: watchPaths,
-		Stats:      app.NewStats(searchEngine, config.Store{}, indexRunner),
+		Stats:      usecase.NewStats(searchEngine, config.Store{}, indexRunner),
 		Resetter:   indexResetHandler{watchPaths: watchPaths, resetter: searchEngine},
 	}
 
