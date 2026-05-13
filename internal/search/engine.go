@@ -61,13 +61,15 @@ func Init(indexPath string) error {
 }
 
 func buildIndexMapping() mapping.IndexMapping {
+	policy := domain.PersonNameSearchPolicy()
+	schema := domain.DefaultIndexSchema()
 	indexMapping := bleve.NewIndexMapping()
 
 	// 1. Define N-gram Token Filter
 	err := indexMapping.AddCustomTokenFilter("ngram_filter", map[string]interface{}{
 		"type": ngram.Name,
-		"min":  1.0,
-		"max":  10.0,
+		"min":  float64(policy.PartialMatchMinGram),
+		"max":  float64(policy.PartialMatchMaxGram),
 	})
 	if err != nil {
 		panic(err)
@@ -101,17 +103,17 @@ func buildIndexMapping() mapping.IndexMapping {
 	// Field: content (Uses N-gram Analyzer)
 	contentFieldMapping := bleve.NewTextFieldMapping()
 	contentFieldMapping.Analyzer = "ngram_analyzer"
-	docMapping.AddFieldMappingsAt("content", contentFieldMapping)
+	docMapping.AddFieldMappingsAt(schema.ContentField, contentFieldMapping)
 
-	// Field: content_nospace (Uses Standard Analyzer - for "Ignore Spaces")
+	// Field: content_nospace (Uses N-gram Analyzer - for person-name search without spaces)
 	nospaceFieldMapping := bleve.NewTextFieldMapping()
-	nospaceFieldMapping.Analyzer = "standard"
-	docMapping.AddFieldMappingsAt("content_nospace", nospaceFieldMapping)
+	nospaceFieldMapping.Analyzer = "ngram_analyzer"
+	docMapping.AddFieldMappingsAt(schema.ContentNoSpaceField, nospaceFieldMapping)
 
 	// Field: path (Stored, not analyzed for full text search usually, but good to have)
 	pathFieldMapping := bleve.NewTextFieldMapping()
 	pathFieldMapping.Store = true
-	docMapping.AddFieldMappingsAt("path", pathFieldMapping)
+	docMapping.AddFieldMappingsAt(schema.PathField, pathFieldMapping)
 
 	indexMapping.DefaultMapping = docMapping
 
@@ -128,16 +130,12 @@ func IndexDocument(id string, content string, contentNoSpace string) error {
 		return fmt.Errorf("index is closed or nil")
 	}
 
-	data := struct {
-		Content        string `json:"content"`
-		ContentNoSpace string `json:"content_nospace"`
-		Path           string `json:"path"`
-	}{
-		Content:        content,
-		ContentNoSpace: contentNoSpace,
-		Path:           id,
-	}
-	return index.Index(id, data)
+	schema := domain.DefaultIndexSchema()
+	return index.Index(id, map[string]string{
+		schema.ContentField:        content,
+		schema.ContentNoSpaceField: contentNoSpace,
+		schema.PathField:           id,
+	})
 }
 
 func (Engine) IndexDocument(doc domain.IndexedDocument) error {
@@ -147,6 +145,7 @@ func (Engine) IndexDocument(doc domain.IndexedDocument) error {
 func (Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
 	exact := req.Mode == domain.SearchModeExact
 	ignoreSpaces := req.Mode == domain.SearchModeIgnoreSpaces
+	schema := domain.DefaultIndexSchema()
 
 	result, err := Search(req.Query, exact, ignoreSpaces)
 	if err != nil {
@@ -156,11 +155,11 @@ func (Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
 	hits := make([]domain.SearchHit, 0, len(result.Hits))
 	for _, hit := range result.Hits {
 		fragment := ""
-		if len(hit.Fragments["content"]) > 0 {
-			fragment = hit.Fragments["content"][0]
+		if len(hit.Fragments[schema.ContentField]) > 0 {
+			fragment = hit.Fragments[schema.ContentField][0]
 		}
-		if ignoreSpaces && len(hit.Fragments["content_nospace"]) > 0 {
-			fragment = hit.Fragments["content_nospace"][0]
+		if ignoreSpaces && len(hit.Fragments[schema.ContentNoSpaceField]) > 0 {
+			fragment = hit.Fragments[schema.ContentNoSpaceField][0]
 		}
 
 		hits = append(hits, domain.SearchHit{
@@ -184,21 +183,22 @@ func Search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchR
 	}
 
 	var searchRequest *bleve.SearchRequest
+	schema := domain.DefaultIndexSchema()
 
 	if ignoreSpaces {
 		query := bleve.NewMatchQuery(queryStr)
-		query.FieldVal = "content_nospace"
+		query.FieldVal = schema.ContentNoSpaceField
 		searchRequest = bleve.NewSearchRequest(query)
 	} else if exactMatch {
 		query := bleve.NewMatchPhraseQuery(queryStr)
-		query.FieldVal = "content"
+		query.FieldVal = schema.ContentField
 		searchRequest = bleve.NewSearchRequest(query)
 	} else {
 		query := bleve.NewQueryStringQuery(queryStr)
 		searchRequest = bleve.NewSearchRequest(query)
 	}
 
-	searchRequest.Fields = []string{"path", "content"}
+	searchRequest.Fields = []string{schema.PathField, schema.ContentField}
 	searchRequest.Highlight = bleve.NewHighlight()
 	return index.Search(searchRequest)
 }

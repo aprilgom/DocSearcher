@@ -24,3 +24,17 @@ func TestSearcherPrefersIgnoreSpacesMode(t *testing.T) {
 		t.Fatalf("query = %q, want %q", index.search.Query, "한 글")
 	}
 }
+
+func TestSearcherRejectsQueriesShorterThanPersonNamePolicy(t *testing.T) {
+	index := &fakeIndex{}
+	searcher := NewSearcher(index)
+
+	_, err := searcher.Search("김", false, false)
+
+	if err == nil {
+		t.Fatal("Search returned nil error, want short query error")
+	}
+	if index.search.Query != "" {
+		t.Fatalf("index search was called with query %q", index.search.Query)
+	}
+}
