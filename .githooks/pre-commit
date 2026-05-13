@@ -32,3 +32,19 @@ if [ -f goHwpTxt/go.mod ]; then
 		go test ./...
 	)
 fi
+
+echo "Checking go mod tidy"
+if ! go mod tidy -diff; then
+	printf 'go.mod or go.sum needs go mod tidy. Run go mod tidy and retry.\n' >&2
+	exit 1
+fi
+
+if [ -f goHwpTxt/go.mod ]; then
+	(
+		cd goHwpTxt
+		if ! go mod tidy -diff; then
+			printf 'goHwpTxt/go.mod or goHwpTxt/go.sum needs go mod tidy. Run go mod tidy in goHwpTxt and retry.\n' >&2
+			exit 1
+		fi
+	)
+fi
