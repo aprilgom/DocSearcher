@@ -19,9 +19,13 @@ var service = app.NewService(app.Dependencies{
 	TextExtractor:  parser.TextExtractor{},
 	DocumentIndex:  search.Engine{},
 	ConfigStore:    config.Store{},
-	WatchRegistry:  watcher.Registry{},
+	WatchRegistry:  watcher.Registry{StartIndexing: indexer.Start},
 	IndexingStatus: indexer.Status{},
 })
+
+func SetService(s *app.Service) {
+	service = s
+}
 
 func Start(port string) {
 	http.HandleFunc("/", homeHandler)
