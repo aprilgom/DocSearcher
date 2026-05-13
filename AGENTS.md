@@ -25,6 +25,7 @@
 - Keep branch `<short-subject>` lowercase ASCII with hyphens.
 - Prefer these types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `build`.
 - Scope should name the affected module or concern, such as `parser`, `indexer`, `search`, `server`, `client`, `docs`, or `codex`.
+- Before creating or renaming a branch, verify the name matches `<type>/<scope>-<short-subject>`; if a requested name does not match, convert it to the closest conforming name.
 - Examples:
   - Commit: `docs(codex): git 컨벤션 추가`
   - Branch: `docs/codex-add-git-conventions`
@@ -34,6 +35,9 @@
 ## Change Boundaries
 - Do not commit local runtime data: `config.json`, `hwp-index.bleve/`, or real test documents under `goHwpTxt/testdata/`.
 - Treat `goHwpTxt/pkg/hwp3/hnc2unicode_tables.go` as table data; avoid broad formatting-only edits there.
+
+## Working Rules
+- When asked to "PR 올려" or "올려", create the pull request after pushing the branch; do not stop at reporting the PR creation URL.
 
 ## Done Criteria
 - Run `go test ./...` before reporting completion when Go code changes.
