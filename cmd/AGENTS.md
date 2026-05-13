@@ -22,6 +22,9 @@ go test $(go list ./... | grep -v '/cmd/client$')
 - `cmd/client` depends on `github.com/jchv/go-webview2` and Windows shell behavior.
 - Warning: on macOS, `go test ./...` may fail because the Windows WebView client does not build there. If only non-client code changed, verify the affected package set and report the `cmd/client` limitation explicitly.
 
+## Known Failures
+- `go test ./...` can fail on macOS when it reaches `cmd/client`; use the macOS-safe package subset unless the client itself changed.
+
 ## Dependencies
 - See [../ARCHITECTURE.md](../ARCHITECTURE.md) for how `cmd/app` wires `internal/search`, `internal/watcher`, and `internal/server`.
 - See [../internal/AGENTS.md](../internal/AGENTS.md) before moving behavior out of entrypoints.

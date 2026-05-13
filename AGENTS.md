@@ -28,6 +28,13 @@ go build ./cmd/app
 - See [cmd/AGENTS.md](cmd/AGENTS.md) and [internal/AGENTS.md](internal/AGENTS.md) before editing those modules.
 - `internal/parser` calls `goHwpTxt`; treat `goHwpTxt` as an external local replacement unless the task explicitly targets it.
 
+```mermaid
+flowchart LR
+  cmd[cmd/app] --> internal[internal packages]
+  internal --> web[web/templates]
+  internal --> hwp[goHwpTxt external replace]
+```
+
 ## Git Conventions
 - Use Conventional Commits for commit messages: `<type>(<scope>): <subject>`.
 - Use the same `type` and `scope` in branch names: `<type>/<scope>-<short-subject>`.

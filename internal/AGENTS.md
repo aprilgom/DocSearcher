@@ -25,6 +25,9 @@ go run ./cmd/app
 - `go test ./internal/...` is the preferred macOS-safe verification for internal-only changes.
 - Warning: full `go test ./...` may fail on macOS because `cmd/client` uses the Windows WebView2 client. Report that limitation if it prevents full verification.
 
+## Known Failures
+- `go test ./...` can fail on macOS outside `internal` because `cmd/client` is Windows-specific; this is not an internal package failure.
+
 ## Dependencies
 - See [../ARCHITECTURE.md](../ARCHITECTURE.md) for cross-module data flow.
 - `internal/server` depends on `internal/config`, `internal/search`, `internal/indexer`, `internal/watcher`, and `web/templates`.
