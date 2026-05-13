@@ -68,6 +68,8 @@ features should be designed against the Wails client.
 - [x] Support Windows UNC mounts as well as drive-letter mounts.
 - [x] Store `root_id` and `relative_path` in Bleve; keep `server_path`
   server-only and optional.
+- [x] Allow overlapping roots, with each file owned by the most specific
+  matching root.
 
 ### Implementation Tasks
 
@@ -89,7 +91,12 @@ Indexing and search storage:
 - [ ] Store `root_id`, `relative_path`, and optional `server_path` in Bleve.
 - [ ] Ensure watcher create/write/delete events compute IDs from root context,
   not raw event paths.
-- [ ] Handle overlapping roots by choosing the most specific matching root.
+- [ ] Handle overlapping roots by choosing the most specific matching root for
+  each file.
+- [ ] Skip more-specific child-root subtrees during parent-root scans to avoid
+  duplicate logical documents.
+- [ ] Re-index affected roots when root ownership changes, such as removing a
+  child root that was excluding a subtree from its parent.
 
 Search API and web UI:
 

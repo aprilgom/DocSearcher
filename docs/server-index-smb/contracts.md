@@ -68,9 +68,10 @@ Server config rules:
 
 - `id` must satisfy the `root_id` validation rules and be unique.
 - `server_path` must be absolute after `filepath.Clean`.
-- If roots overlap, the most specific matching root wins. Avoid overlapping
-  roots in normal deployments because they can make operational ownership
-  unclear.
+- Overlapping roots are allowed. If multiple roots contain the same file, the
+  most specific matching root owns that file.
+- A parent root scan must skip subtrees owned by more specific child roots so
+  the same physical file is not indexed under multiple logical IDs.
 - Existing `watched_paths` may be accepted for one transition release as legacy
   input, but new config and UI flows should write `document_roots`.
 
@@ -189,6 +190,20 @@ For every supported file under `server_path`, compute:
 relative_path = filepath.Rel(server_path, file_path)
 document_id   = root_id + ":" + slash-normalized relative_path
 ```
+
+Root ownership rules:
+
+- A file is owned by the most specific configured root that contains it.
+- Initial scans, watcher create/write/delete events, and stale-index cleanup
+  must all use the same ownership rule.
+- If a parent root is scanned, directories owned by more specific child roots
+  are skipped during that parent scan. The child root scan is responsible for
+  indexing those files.
+- Adding a parent root around an existing child root is allowed, but the parent
+  root indexes only the files not owned by the child root.
+- Removing a child root can move ownership of its files to a parent root; handle
+  that as an explicit root-configuration change that requires re-indexing the
+  affected roots.
 
 Implementation requirements:
 

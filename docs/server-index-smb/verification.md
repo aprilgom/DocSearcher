@@ -12,6 +12,11 @@
   fields.
 - Unit test search result hydration includes `root_id` and `relative_path`.
 - Unit test overlapping roots choose the most specific matching root.
+- Unit test parent-root scans skip subtrees owned by more specific child roots.
+- Integration test overlapping roots do not produce duplicate logical documents
+  during a full scan.
+- Integration test removing a child root and re-indexing moves affected files to
+  the parent root when a parent root still contains them.
 - Unit test legacy `watched_paths` load as transition document roots when
   `document_roots` is absent.
 - Integration test re-index after file change under a configured root.
