@@ -3,8 +3,10 @@ package search
 import (
 	"fmt"
 	"hwp-searcher/internal/domain"
+	"log"
 	"os"
-	"reflect"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/blevesearch/bleve/v2"
@@ -17,20 +19,24 @@ type Engine struct {
 }
 
 func NewEngine(indexPath string) (*Engine, error) {
-	engine := &Engine{}
-	if err := engine.Init(indexPath); err != nil {
+	normalizedPath, err := normalizeIndexPath(indexPath)
+	if err != nil {
+		return nil, err
+	}
+
+	engine := &Engine{indexPath: normalizedPath}
+	if err := engine.open(); err != nil {
 		return nil, err
 	}
 	return engine, nil
 }
 
-// Init initializes the Bleve index with N-gram mapping
-func (e *Engine) Init(indexPath string) error {
+func (e *Engine) open() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	fmt.Printf("Initializing index at %s\n", indexPath)
-	index, err := openOrCreateIndex(indexPath)
+	log.Printf("Initializing index at %s", e.indexPath)
+	index, err := openOrCreateIndex(e.indexPath)
 	if err != nil {
 		return fmt.Errorf("failed to open/create index: %w", err)
 	}
@@ -38,28 +44,52 @@ func (e *Engine) Init(indexPath string) error {
 		return fmt.Errorf("bleve returned nil index with no error")
 	}
 
-	e.indexPath = indexPath
 	e.index = index
 	return nil
 }
 
+func normalizeIndexPath(indexPath string) (string, error) {
+	indexPath = strings.TrimSpace(indexPath)
+	if indexPath == "" {
+		return "", fmt.Errorf("index path is empty")
+	}
+
+	absPath, err := filepath.Abs(indexPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve index path: %w", err)
+	}
+	cleanPath := filepath.Clean(absPath)
+	rootPath := filepath.Clean(filepath.VolumeName(cleanPath) + string(filepath.Separator))
+	if cleanPath == rootPath {
+		return "", fmt.Errorf("index path must not be a filesystem root: %s", cleanPath)
+	}
+	if filepath.Ext(cleanPath) != ".bleve" {
+		return "", fmt.Errorf("index path must use .bleve extension: %s", cleanPath)
+	}
+
+	return cleanPath, nil
+}
+
 func openOrCreateIndex(indexPath string) (bleve.Index, error) {
 	if _, statErr := os.Stat(indexPath); os.IsNotExist(statErr) {
-		fmt.Println("Index does not exist, creating new...")
+		log.Println("Index does not exist, creating new...")
 		return createIndex(indexPath)
 	}
 
-	fmt.Println("Index exists, opening...")
+	log.Println("Index exists, opening...")
 	index, err := bleve.Open(indexPath)
 	if err == nil {
 		return index, nil
 	}
 
-	fmt.Printf("Failed to open index: %v. Attempting to recreate...\n", err)
+	log.Printf("Failed to open index: %v. Attempting to recreate...", err)
 	return recreateIndex(indexPath)
 }
 
 func recreateIndex(indexPath string) (bleve.Index, error) {
+	if _, err := normalizeIndexPath(indexPath); err != nil {
+		return nil, err
+	}
 	if err := os.RemoveAll(indexPath); err != nil {
 		return nil, fmt.Errorf("failed to remove corrupted index: %w", err)
 	}
@@ -77,10 +107,8 @@ func createIndex(indexPath string) (bleve.Index, error) {
 func (e *Engine) indexDocument(id string, content string, contentNoSpace string) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-
-	// Robust nil check
-	if e.index == nil || (reflect.ValueOf(e.index).Kind() == reflect.Ptr && reflect.ValueOf(e.index).IsNil()) {
-		return fmt.Errorf("index is closed or nil")
+	if e.index == nil {
+		return fmt.Errorf("index is closed")
 	}
 
 	schema := domain.DefaultIndexSchema()
@@ -158,7 +186,24 @@ func (e *Engine) DeleteDocument(id domain.DocumentID) error {
 }
 
 func (e *Engine) Reset() error {
-	return e.ResetIndex(e.indexPath)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.index == nil {
+		return fmt.Errorf("index is closed")
+	}
+
+	if err := e.index.Close(); err != nil {
+		return err
+	}
+	e.index = nil
+
+	newIndex, err := recreateIndex(e.indexPath)
+	if err != nil {
+		return err
+	}
+	e.index = newIndex
+	return nil
 }
 
 func (e *Engine) Close() error {
@@ -170,25 +215,4 @@ func (e *Engine) Close() error {
 	err := e.index.Close()
 	e.index = nil
 	return err
-}
-
-// ResetIndex closes, deletes, and re-initializes the index
-func (e *Engine) ResetIndex(indexPath string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if e.index != nil {
-		if err := e.index.Close(); err != nil {
-			return err
-		}
-		e.index = nil
-	}
-
-	newIndex, err := recreateIndex(indexPath)
-	if err != nil {
-		return err
-	}
-	e.indexPath = indexPath
-	e.index = newIndex
-	return nil
 }

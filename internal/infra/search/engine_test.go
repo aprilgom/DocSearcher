@@ -3,6 +3,7 @@ package search
 import (
 	"encoding/json"
 	"hwp-searcher/internal/domain"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -48,6 +49,27 @@ func TestBuildIndexMappingUsesDomainIndexSchemaFields(t *testing.T) {
 		if !strings.Contains(text, `"`+field+`"`) {
 			t.Fatalf("mapping does not include field %q: %s", field, text)
 		}
+	}
+}
+
+func TestNewEngineRejectsUnsafeIndexPaths(t *testing.T) {
+	tests := []struct {
+		name      string
+		indexPath string
+	}{
+		{name: "empty path", indexPath: ""},
+		{name: "root path", indexPath: filepath.VolumeName(os.TempDir()) + string(filepath.Separator)},
+		{name: "non bleve path", indexPath: filepath.Join(t.TempDir(), "documents")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine, err := NewEngine(tt.indexPath)
+			if err == nil {
+				_ = engine.Close()
+				t.Fatalf("NewEngine(%q) succeeded, want error", tt.indexPath)
+			}
+		})
 	}
 }
 
