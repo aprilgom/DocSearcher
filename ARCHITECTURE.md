@@ -39,7 +39,8 @@ code for Codex-readiness ownership.
   no-space content normalization, and document deletion from the index.
 - `internal/parser`: owns file-extension dispatch and text extraction. It calls
   `goHwpTxt.ExtractText` for `.hwp`/`.hwpx` and `github.com/ledongthuc/pdf` for
-  `.pdf`.
+  `.pdf`. See `docs/parser-boundary.md` for the parser-facing contract and
+  fixture expectations.
 - `internal/search`: owns the process-global Bleve index, mapping, indexing,
   querying, counting, deletion, and reset.
 - `internal/server`: owns HTTP routes, template rendering, HTMX fragments, and
