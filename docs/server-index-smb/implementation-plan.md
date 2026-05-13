@@ -51,23 +51,38 @@ macOS support.
 Migration from `cmd/client` to Wails can be phased, but new cross-platform client
 features should be designed against the Wails client.
 
-## Implementation Checklist
+## Progress Checklist
 
-1. Add domain types for document roots, relative paths, and logical document IDs.
-2. Add server-side `document_roots` config.
-3. Keep current watched-path behavior only where needed for compatibility.
-4. Change indexing to compute relative paths from configured roots.
-5. Store `root_id`, `relative_path`, and optional `server_path` in Bleve.
-6. Return search hits with logical path fields.
-7. Update web result actions to pass `root_id` and `relative_path`.
-8. Add Wails client support for resolving root mounts into local SMB paths.
-9. Open files through OS-native shell/default app behavior.
-10. Add "show in folder" behavior.
-11. Add clear open failures for missing mounts, unavailable files, and denied
-    permissions.
-12. Decide whether the Wails client replaces `cmd/client` in one migration or
-    coexists until Windows behavior is feature-complete.
-13. Add periodic rescan only if watcher testing under Samba shows missed events.
+### Completed Planning Decisions
+
+- [x] Use logical document identity based on `root_id` and `relative_path`.
+- [x] Keep Linux `server_path` as server-only operational state.
+- [x] Return logical path fields to clients instead of openable Linux paths.
+- [x] Use Wails as the cross-platform desktop client direction.
+- [x] Treat `cmd/client` as the existing Windows WebView2 client until Wails
+  replaces it.
+- [x] Reset and rebuild the Bleve index instead of migrating existing documents
+  in place.
+
+### Implementation Tasks
+
+- [ ] Add domain types for document roots, relative paths, and logical document
+  IDs.
+- [ ] Add server-side `document_roots` config.
+- [ ] Keep current watched-path behavior only where needed for compatibility.
+- [ ] Change indexing to compute relative paths from configured roots.
+- [ ] Store `root_id`, `relative_path`, and optional `server_path` in Bleve.
+- [ ] Return search hits with logical path fields.
+- [ ] Update web result actions to pass `root_id` and `relative_path`.
+- [ ] Add Wails client support for resolving root mounts into local SMB paths.
+- [ ] Open files through OS-native shell/default app behavior.
+- [ ] Add "show in folder" behavior.
+- [ ] Add clear open failures for missing mounts, unavailable files, and denied
+  permissions.
+- [ ] Decide whether the Wails client replaces `cmd/client` in one migration or
+  coexists until Windows behavior is feature-complete.
+- [ ] Add periodic rescan only if watcher testing under Samba shows missed
+  events.
 
 ## Migration Approach
 
