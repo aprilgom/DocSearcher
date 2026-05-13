@@ -144,6 +144,37 @@ func (Engine) IndexDocument(doc domain.IndexedDocument) error {
 	return IndexDocument(string(doc.ID), doc.Content, doc.ContentNoSpace)
 }
 
+func (Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
+	exact := req.Mode == domain.SearchModeExact
+	ignoreSpaces := req.Mode == domain.SearchModeIgnoreSpaces
+
+	result, err := Search(req.Query, exact, ignoreSpaces)
+	if err != nil {
+		return domain.SearchResult{}, err
+	}
+
+	hits := make([]domain.SearchHit, 0, len(result.Hits))
+	for _, hit := range result.Hits {
+		fragment := ""
+		if len(hit.Fragments["content"]) > 0 {
+			fragment = hit.Fragments["content"][0]
+		}
+		if ignoreSpaces && len(hit.Fragments["content_nospace"]) > 0 {
+			fragment = hit.Fragments["content_nospace"][0]
+		}
+
+		hits = append(hits, domain.SearchHit{
+			ID:       domain.DocumentID(hit.ID),
+			Fragment: fragment,
+		})
+	}
+
+	return domain.SearchResult{
+		Total: result.Total,
+		Hits:  hits,
+	}, nil
+}
+
 // Search performs a query based on options
 func Search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchResult, error) {
 	mu.RLock()

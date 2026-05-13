@@ -32,6 +32,16 @@ type SearchRequest struct {
 	Mode  SearchMode
 }
 
+type SearchResult struct {
+	Total uint64
+	Hits  []SearchHit
+}
+
+type SearchHit struct {
+	ID       DocumentID
+	Fragment string
+}
+
 func NewDocument(path string, content string) Document {
 	return Document{
 		ID:      DocumentID(path),

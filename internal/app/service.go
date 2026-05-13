@@ -11,6 +11,7 @@ type TextExtractor interface {
 type DocumentIndex interface {
 	IndexDocument(doc domain.IndexedDocument) error
 	DeleteDocument(id domain.DocumentID) error
+	Search(req domain.SearchRequest) (domain.SearchResult, error)
 }
 
 type Dependencies struct {
@@ -42,4 +43,12 @@ func (s *Service) IndexFile(path string) error {
 
 func (s *Service) RemoveFile(path string) error {
 	return s.documentIndex.DeleteDocument(domain.DocumentID(path))
+}
+
+func (s *Service) Search(query string, exact bool, ignoreSpaces bool) (domain.SearchResult, error) {
+	req := domain.SearchRequest{
+		Query: query,
+		Mode:  domain.SearchModeFromFlags(exact, ignoreSpaces),
+	}
+	return s.documentIndex.Search(req)
 }
