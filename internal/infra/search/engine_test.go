@@ -358,6 +358,83 @@ func TestHitMapperPrefersNoSpaceFragmentForIgnoreSpacesSearch(t *testing.T) {
 	}
 }
 
+func TestHitMapperMapsTotalIDsAndContentFragment(t *testing.T) {
+	schema := domain.IndexSchema{
+		ContentField:        "body",
+		ContentNoSpaceField: "body_compact",
+		PathField:           "source_path",
+	}
+	mapper := newHitMapper(schema)
+
+	result := &bleve.SearchResult{
+		Total: 7,
+		Hits: search.DocumentMatchCollection{
+			{
+				ID: "first.hwp",
+				Fragments: search.FieldFragmentMap{
+					schema.ContentField: []string{"first fragment"},
+				},
+			},
+			{
+				ID: "second.pdf",
+				Fragments: search.FieldFragmentMap{
+					schema.ContentField: []string{"second fragment"},
+				},
+			},
+		},
+	}
+
+	got := mapper.searchResult(result, domain.SearchRequest{
+		Query: "fragment",
+		Mode:  domain.SearchModeExact,
+	})
+
+	if got.Total != result.Total {
+		t.Fatalf("Total = %d, want %d", got.Total, result.Total)
+	}
+	if len(got.Hits) != 2 {
+		t.Fatalf("len(Hits) = %d, want 2", len(got.Hits))
+	}
+	if got.Hits[0].ID != "first.hwp" || got.Hits[1].ID != "second.pdf" {
+		t.Fatalf("hit IDs = %v, want [first.hwp second.pdf]", hitIDs(got.Hits))
+	}
+	if got.Hits[0].Fragment != "first fragment" {
+		t.Fatalf("first Fragment = %q, want content fragment", got.Hits[0].Fragment)
+	}
+	if got.Hits[1].Fragment != "second fragment" {
+		t.Fatalf("second Fragment = %q, want content fragment", got.Hits[1].Fragment)
+	}
+}
+
+func TestHitMapperUsesEmptyFragmentWhenNoContentFragmentExists(t *testing.T) {
+	schema := domain.DefaultIndexSchema()
+	mapper := newHitMapper(schema)
+
+	result := &bleve.SearchResult{
+		Total: 1,
+		Hits: search.DocumentMatchCollection{
+			{
+				ID: "empty-fragment.hwp",
+				Fragments: search.FieldFragmentMap{
+					schema.PathField: []string{"/not/a/content/fragment.hwp"},
+				},
+			},
+		},
+	}
+
+	got := mapper.searchResult(result, domain.SearchRequest{
+		Query: "missing",
+		Mode:  domain.SearchModeQuery,
+	})
+
+	if len(got.Hits) != 1 {
+		t.Fatalf("len(Hits) = %d, want 1", len(got.Hits))
+	}
+	if got.Hits[0].Fragment != "" {
+		t.Fatalf("Fragment = %q, want empty string", got.Hits[0].Fragment)
+	}
+}
+
 func hasExactlyIDs(hits []domain.SearchHit, want []domain.DocumentID) bool {
 	got := hitIDs(hits)
 	if len(got) != len(want) {
