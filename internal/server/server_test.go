@@ -115,6 +115,33 @@ func TestSearchHandlerEscapesDynamicHTML(t *testing.T) {
 	}
 }
 
+func TestSearchHandlerPreservesSafeHighlightMarkTags(t *testing.T) {
+	mux := NewMux(Handlers{
+		Searcher: fakeSearcher{
+			result: domain.SearchResult{
+				Total: 1,
+				Hits: []domain.SearchHit{{
+					ID:       domain.DocumentID("report.pdf"),
+					Fragment: `before <mark>match</mark> after`,
+				}},
+			},
+		},
+		WatchPaths: fakeWatchPaths{},
+		Stats:      fakeStats{},
+		Resetter:   fakeResetter{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=test", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, `before <mark>match</mark> after`) {
+		t.Fatalf("search response does not preserve safe mark highlight, got %q", body)
+	}
+}
+
 func TestConfigHandlerEscapesWatchedPathHTML(t *testing.T) {
 	mux := NewMux(Handlers{
 		Searcher:   fakeSearcher{},

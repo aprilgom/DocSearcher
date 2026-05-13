@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -85,6 +86,49 @@ func renderError(w http.ResponseWriter, message string, err error) {
 	render(w, "error", fmt.Sprintf("%s: %v", message, err))
 }
 
+func highlightFragment(fragment string) template.HTML {
+	const (
+		openMark  = "<mark>"
+		closeMark = "</mark>"
+	)
+
+	var b strings.Builder
+	openMarks := 0
+	for len(fragment) > 0 {
+		switch {
+		case strings.HasPrefix(fragment, openMark):
+			b.WriteString(openMark)
+			openMarks++
+			fragment = strings.TrimPrefix(fragment, openMark)
+		case strings.HasPrefix(fragment, closeMark) && openMarks > 0:
+			b.WriteString(closeMark)
+			openMarks--
+			fragment = strings.TrimPrefix(fragment, closeMark)
+		default:
+			nextOpen := strings.Index(fragment, openMark)
+			nextClose := -1
+			if openMarks > 0 {
+				nextClose = strings.Index(fragment, closeMark)
+			}
+			next := -1
+			if nextOpen >= 0 {
+				next = nextOpen
+			}
+			if nextClose >= 0 && (next == -1 || nextClose < next) {
+				next = nextClose
+			}
+			if next == -1 {
+				b.WriteString(template.HTMLEscapeString(fragment))
+				fragment = ""
+				continue
+			}
+			b.WriteString(template.HTMLEscapeString(fragment[:next]))
+			fragment = fragment[next:]
+		}
+	}
+	return template.HTML(b.String())
+}
+
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles("web/templates/index.html")
 	if err != nil {
@@ -126,11 +170,11 @@ func searchHandler(handlers Handlers) http.HandlerFunc {
 		for _, hit := range res.Hits {
 			render(w, "searchHit", struct {
 				ID       domain.DocumentID
-				Fragment string
+				Fragment template.HTML
 				Path     string
 			}{
 				ID:       hit.ID,
-				Fragment: hit.Fragment,
+				Fragment: highlightFragment(hit.Fragment),
 				Path:     string(hit.ID),
 			})
 		}
