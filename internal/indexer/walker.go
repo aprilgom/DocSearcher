@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"hwp-searcher/internal/domain"
 	"hwp-searcher/internal/parser"
 	"hwp-searcher/internal/search"
 	"log"
@@ -73,11 +74,7 @@ func IsSupportedDocumentFile(path string) bool {
 }
 
 func NormalizeNoSpaceContent(content string) string {
-	contentNoSpace := strings.ReplaceAll(content, " ", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\n", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\t", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\r", "")
-	return contentNoSpace
+	return domain.NormalizeNoSpaceContent(content)
 }
 
 // IndexFile indexes a single file
