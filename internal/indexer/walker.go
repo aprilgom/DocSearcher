@@ -40,11 +40,8 @@ func Start(root string) {
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() {
-				ext := strings.ToLower(filepath.Ext(path))
-				if ext == ".hwp" || ext == ".pdf" {
-					jobs <- path
-				}
+			if !info.IsDir() && IsSupportedDocumentFile(path) {
+				jobs <- path
 			}
 			return nil
 		})
@@ -65,6 +62,24 @@ func worker(jobs <-chan string, wg *sync.WaitGroup) {
 	}
 }
 
+func IsSupportedDocumentFile(path string) bool {
+	name := filepath.Base(path)
+	if strings.Contains(name, "~$") || strings.HasSuffix(strings.ToLower(name), ".tmp") {
+		return false
+	}
+
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".hwp" || ext == ".hwpx" || ext == ".pdf"
+}
+
+func NormalizeNoSpaceContent(content string) string {
+	contentNoSpace := strings.ReplaceAll(content, " ", "")
+	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\n", "")
+	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\t", "")
+	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\r", "")
+	return contentNoSpace
+}
+
 // IndexFile indexes a single file
 func IndexFile(path string) {
 	content, err := parser.Parse(path)
@@ -73,11 +88,7 @@ func IndexFile(path string) {
 		return
 	}
 
-	// Generate No-Space Content
-	contentNoSpace := strings.ReplaceAll(content, " ", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\n", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\t", "")
-	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\r", "")
+	contentNoSpace := NormalizeNoSpaceContent(content)
 
 	err = search.IndexDocument(path, content, contentNoSpace)
 	if err != nil {
