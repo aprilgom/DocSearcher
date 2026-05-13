@@ -30,8 +30,9 @@ parser internals.
 | Supported file with parser failure | Non-nil error from the adapter |
 | Unsupported extension | Non-nil `unsupported file type` error |
 
-The parser layer does not index, normalize spacing, watch files, or render UI.
-Those responsibilities belong to `internal/indexer`, `internal/watcher`, and
+The parser layer does not index, normalize spacing, walk watched folders, watch
+files, or render UI. Those responsibilities belong to `internal/app`,
+`internal/domain`, `internal/scanner`, `internal/watcher`, and
 `internal/server`.
 
 ## Fixture Expectations
