@@ -1,0 +1,65 @@
+{
+  "baseline": {
+    "repo": "DocSearcher",
+    "path": "/Users/aprilgom/DocSearcher",
+    "scored_at": "2026-05-13",
+    "git_branch_recorded_by_scorer": "main",
+    "working_branch": "docs/codex-readiness-improvements",
+    "rubric_version": "codex-v1-100pt",
+    "total": 17,
+    "grade": "Codex-Hostile",
+    "scope_note": "goHwpTxt is excluded from readiness scoring because it is a local replace of an external HWP/HWPX parser package."
+  },
+  "category_g_agent_outcome_evidence": {
+    "score": 1,
+    "max": 5,
+    "finding": "agent eval / benchmark directory and result files were absent before this baseline",
+    "improvement_intent": "introduce lightweight representative task pass-rate tracking for Codex work"
+  },
+  "representative_tasks": [
+    {
+      "id": "docs-context-update",
+      "description": "Update Codex-facing docs such as AGENTS.md or module context files",
+      "expected_evidence": "scoped diff, accurate links and commands, docs-only verification"
+    },
+    {
+      "id": "parser-change",
+      "description": "Change HWP/HWPX/PDF text extraction behavior",
+      "expected_evidence": "parser tests or documented platform limitation"
+    },
+    {
+      "id": "indexer-change",
+      "description": "Change file walking or indexing flow",
+      "expected_evidence": "relevant Go tests and expected indexing behavior"
+    },
+    {
+      "id": "search-change",
+      "description": "Change Bleve search behavior or query handling",
+      "expected_evidence": "search tests or manual query verification"
+    },
+    {
+      "id": "server-ui-change",
+      "description": "Change server routes, templates, or web UI behavior",
+      "expected_evidence": "server build/test evidence and browser or manual verification"
+    }
+  ],
+  "outcome_schema": {
+    "required_fields": [
+      "task_id",
+      "date",
+      "branch",
+      "result",
+      "verification"
+    ],
+    "optional_fields": [
+      "commit",
+      "notes"
+    ],
+    "result_values": [
+      "pass",
+      "partial",
+      "fail"
+    ],
+    "pass_rate_formula": "pass_count / total_recorded_tasks"
+  }
+}

@@ -35,12 +35,11 @@ go run ./cmd/client
 감시 경로는 실행 중 웹 UI에서 추가하거나, `config.example.json`을 `config.json`으로 복사해 로컬 환경에 맞게 수정합니다. `config.json`, 검색 인덱스(`hwp-index.bleve/`), 테스트용 실제 문서(`goHwpTxt/testdata/`)는 공개 저장소에 포함하지 않습니다.
 
 ## 구조/참고
-- `cmd/app`: 검색 서버 실행 진입점
-- `cmd/client`: Windows WebView 클라이언트
-- `internal/indexer`: 파일 순회 및 인덱싱
-- `internal/parser`: HWP/PDF 텍스트 추출
-- `internal/search`: Bleve 검색 엔진
-- `web/templates`: 검색 화면 템플릿
+- [ARCHITECTURE.md](ARCHITECTURE.md): 런타임 흐름과 의존성 지도
+- [AGENTS.md](AGENTS.md): Codex 작업 명령, 검증 기준, 변경 경계
+- [cmd/AGENTS.md](cmd/AGENTS.md): 서버와 Windows WebView 클라이언트 진입점 작업 지침
+- [internal/AGENTS.md](internal/AGENTS.md): indexer/parser/search/server 내부 패키지 작업 지침
+- [evals/README.md](evals/README.md): Codex 작업 결과 기록 방식
 
 ## 개선한 점
 - `HwpPdfSearcher`의 Python GUI 중심 구조를 Go 서버와 WebView 클라이언트 구조로 분리했습니다.

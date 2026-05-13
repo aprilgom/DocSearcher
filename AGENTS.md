@@ -5,9 +5,15 @@
 - The root module is `hwp-searcher`; the local `goHwpTxt` module is replaced from `./goHwpTxt`.
 
 ## Commands
-- Run server: `go run ./cmd/app`
-- Run WebView client: `go run ./cmd/client`
-- Test all packages: `go test ./...`
+```bash
+go mod download
+go run ./cmd/app
+go test ./...
+go test $(go list ./... | grep -v '/cmd/client$')
+go build ./cmd/app
+```
+- Run Windows WebView client on Windows: `go run ./cmd/client`
+- Test local HWP parser module only when explicitly touching that dependency: `cd goHwpTxt && go test ./...`
 - Pre-commit checks live in `.githooks/pre-commit`; enable them with `git config core.hooksPath .githooks`.
 - On macOS, `go test ./...` currently fails in `cmd/client` because the Windows WebView client does not build there; the pre-commit hook excludes `cmd/client` and tests the remaining root packages plus `goHwpTxt`.
 
@@ -18,6 +24,18 @@
 - `internal/parser` - HWP/PDF text extraction.
 - `internal/search` - Bleve search engine.
 - `goHwpTxt` - local HWP/HWPX parser module.
+
+## Dependencies
+- See [ARCHITECTURE.md](ARCHITECTURE.md) for the runtime flow and dependency map.
+- See [cmd/AGENTS.md](cmd/AGENTS.md) and [internal/AGENTS.md](internal/AGENTS.md) before editing those modules.
+- `internal/parser` calls `goHwpTxt`; treat `goHwpTxt` as an external local replacement unless the task explicitly targets it.
+
+```mermaid
+flowchart LR
+  cmd[cmd/app] --> internal[internal packages]
+  internal --> web[web/templates]
+  internal --> hwp[goHwpTxt external replace]
+```
 
 ## Git Conventions
 - Use Conventional Commits for commit messages: `<type>(<scope>): <subject>`.
@@ -49,10 +67,17 @@
 ## Change Boundaries
 - Do not commit local runtime data: `config.json`, `hwp-index.bleve/`, or real test documents under `goHwpTxt/testdata/`.
 - Treat `goHwpTxt/pkg/hwp3/hnc2unicode_tables.go` as table data; avoid broad formatting-only edits there.
+- Note: `config.example.json` is the committed configuration contract; keep local machine paths only in ignored `config.json`.
+- Warning: never commit secrets, private keys, certificate bundles, or `.env*` files. Add placeholder examples instead.
+- Warning: destructive commands must not target user document folders. Index reset/recovery code should only remove known runtime index paths such as `hwp-index.bleve/`.
+- Important: preserve unrelated dirty worktree changes. Do not use `git reset --hard` or `git checkout --` unless explicitly requested.
 
 ## Working Rules
 - When asked to "PR 올려" or "올려", create the pull request after pushing the branch; do not stop at reporting the PR creation URL.
 
 ## Done Criteria
-- Run `go test ./...` before reporting completion when Go code changes.
-- If a check cannot be run, report the reason and the residual risk.
+- For Go code changes, run `go test ./...` unless the current platform cannot build `cmd/client`.
+- On macOS/Linux, use `go test $(go list ./... | grep -v '/cmd/client$')` and report that `cmd/client` is Windows-only.
+- For parser changes that touch `goHwpTxt`, also run `cd goHwpTxt && go test ./...`.
+- For documentation-only changes, Go tests may be skipped; report that no Go code changed.
+- If any check cannot be run, report the exact command, reason, and residual risk.
