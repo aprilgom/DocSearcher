@@ -24,6 +24,27 @@ func TestWatchPathsAddsPathToStoreAndRegistry(t *testing.T) {
 	}
 }
 
+func TestWatchPathsAddDoesNotStorePathWhenRegistryFails(t *testing.T) {
+	store := &fakeConfigStore{}
+	registry := &failingWatchRegistry{err: errors.New("watch failed")}
+	watchPaths := NewWatchPaths(store, registry)
+
+	err := watchPaths.Add("/docs")
+
+	if err == nil {
+		t.Fatal("Add returned nil, want registry error")
+	}
+	if store.added != "" {
+		t.Fatalf("stored path = %q, want empty when registry fails", store.added)
+	}
+	if len(store.paths) != 0 {
+		t.Fatalf("stored paths = %v, want empty when registry fails", store.paths)
+	}
+	if len(registry.added) != 1 || registry.added[0] != "/docs" {
+		t.Fatalf("registered paths = %v, want attempted [/docs]", registry.added)
+	}
+}
+
 func TestWatchPathsResetReindexesWatchedPaths(t *testing.T) {
 	index := &fakeIndex{}
 	store := &fakeConfigStore{paths: []domain.WatchedPath{"/a", "/b"}}

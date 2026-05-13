@@ -55,10 +55,10 @@ func (w WatchPaths) Start() error {
 
 func (w WatchPaths) Add(path string) error {
 	watchedPath := domain.WatchedPath(path)
-	if err := w.configStore.AddPath(watchedPath); err != nil {
+	if err := w.watchRegistry.AddPath(watchedPath); err != nil {
 		return err
 	}
-	return w.watchRegistry.AddPath(watchedPath)
+	return w.configStore.AddPath(watchedPath)
 }
 
 func (w WatchPaths) Remove(path string) error {
