@@ -16,8 +16,11 @@ import (
 )
 
 var service = app.NewService(app.Dependencies{
-	TextExtractor: parser.TextExtractor{},
-	DocumentIndex: search.Engine{},
+	TextExtractor:  parser.TextExtractor{},
+	DocumentIndex:  search.Engine{},
+	ConfigStore:    config.Store{},
+	WatchRegistry:  watcher.Registry{},
+	IndexingStatus: indexer.Status{},
 })
 
 func Start(port string) {
@@ -80,7 +83,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	// Return list of watched paths as HTML list items
-	for _, path := range config.Current.WatchedPaths {
+	for _, path := range service.WatchedPaths() {
 		fmt.Fprintf(w, `
 			<li class="flex justify-between items-center bg-gray-50 p-2 rounded">
 				<span class="text-sm text-gray-700 truncate">%s</span>
@@ -103,11 +106,9 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "POST" {
-		config.AddPath(path)
-		watcher.AddPath(path)
+		_ = service.AddWatchedPath(path)
 	} else if r.Method == "DELETE" {
-		config.RemovePath(path)
-		watcher.RemovePath(path)
+		_ = service.RemoveWatchedPath(path)
 	}
 
 	// Re-render the list
@@ -115,12 +116,12 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
-	count, _ := search.Count()
+	stats, _ := service.Stats()
 	status := "Idle"
-	if indexer.IsIndexing.Load() {
+	if stats.Indexing {
 		status = "Indexing..."
 	}
-	fmt.Fprintf(w, "<span>%d docs | %d watched | %s</span>", count, len(config.Current.WatchedPaths), status)
+	fmt.Fprintf(w, "<span>%d docs | %d watched | %s</span>", stats.DocumentCount, stats.WatchedPathCount, status)
 }
 
 func resetHandler(w http.ResponseWriter, r *http.Request) {
@@ -128,15 +129,10 @@ func resetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := search.Reset("hwp-index.bleve")
+	err := service.ResetIndex()
 	if err != nil {
 		fmt.Fprintf(w, "<div class='text-red-500'>Reset failed: %v</div>", err)
 		return
-	}
-
-	// Re-index all watched paths
-	for _, path := range config.Current.WatchedPaths {
-		indexer.Start(path)
 	}
 
 	fmt.Fprint(w, "<div class='text-green-600'>Index reset! Re-indexing started...</div>")

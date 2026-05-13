@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"hwp-searcher/internal/domain"
 	"os"
 	"sync"
 )
@@ -14,6 +15,8 @@ type Config struct {
 }
 
 var Current *Config
+
+type Store struct{}
 
 func init() {
 	Current = &Config{
@@ -71,4 +74,23 @@ func RemovePath(path string) error {
 	Current.WatchedPaths = newPaths
 	Current.mu.Unlock()
 	return Save()
+}
+
+func (Store) WatchedPaths() []domain.WatchedPath {
+	Current.mu.Lock()
+	defer Current.mu.Unlock()
+
+	paths := make([]domain.WatchedPath, 0, len(Current.WatchedPaths))
+	for _, path := range Current.WatchedPaths {
+		paths = append(paths, domain.WatchedPath(path))
+	}
+	return paths
+}
+
+func (Store) AddPath(path domain.WatchedPath) error {
+	return AddPath(string(path))
+}
+
+func (Store) RemovePath(path domain.WatchedPath) error {
+	return RemovePath(string(path))
 }

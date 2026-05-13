@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"hwp-searcher/internal/config"
+	"hwp-searcher/internal/domain"
 	"hwp-searcher/internal/indexer"
 	"log"
 	"os"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 )
+
+type Registry struct{}
 
 var (
 	watcher *fsnotify.Watcher
@@ -77,6 +80,16 @@ func RemovePath(root string) {
 	// But simply removing the root from config prevents it from being watched next time
 	// For now, we just remove the root watcher
 	watcher.Remove(root)
+}
+
+func (Registry) AddPath(path domain.WatchedPath) error {
+	AddPath(string(path))
+	return nil
+}
+
+func (Registry) RemovePath(path domain.WatchedPath) error {
+	RemovePath(string(path))
+	return nil
 }
 
 func handleEvent(event fsnotify.Event) {

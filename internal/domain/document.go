@@ -42,6 +42,12 @@ type SearchHit struct {
 	Fragment string
 }
 
+type Stats struct {
+	DocumentCount    uint64
+	WatchedPathCount int
+	Indexing         bool
+}
+
 func NewDocument(path string, content string) Document {
 	return Document{
 		ID:      DocumentID(path),

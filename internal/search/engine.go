@@ -227,6 +227,14 @@ func (Engine) DeleteDocument(id domain.DocumentID) error {
 	return DeleteDocument(string(id))
 }
 
+func (Engine) Count() (uint64, error) {
+	return Count()
+}
+
+func (Engine) Reset() error {
+	return Reset("hwp-index.bleve")
+}
+
 // Reset closes, deletes, and re-initializes the index
 func Reset(indexPath string) error {
 	mu.Lock()

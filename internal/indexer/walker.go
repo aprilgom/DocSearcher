@@ -26,6 +26,12 @@ func SetService(s *app.Service) {
 	service = s
 }
 
+type Status struct{}
+
+func (Status) IsIndexing() bool {
+	return IsIndexing.Load()
+}
+
 func Start(root string) {
 	if IsIndexing.Load() {
 		log.Println("Already indexing")
