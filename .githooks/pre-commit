@@ -11,3 +11,17 @@ if [ -n "$staged_go_files" ]; then
 		exit 1
 	fi
 fi
+
+echo "Running root package tests"
+root_packages=$(go list ./... | grep -v '/cmd/client$')
+if [ -n "$root_packages" ]; then
+	printf '%s\n' "$root_packages" | xargs go test
+fi
+
+if [ -f goHwpTxt/go.mod ]; then
+	echo "Running go test ./... in goHwpTxt"
+	(
+		cd goHwpTxt
+		go test ./...
+	)
+fi
