@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DocSearcher · Codex-Readiness Map</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f8fafc;
+        --surface: #ffffff;
+        --border: #dbe3ef;
+        --text: #0f172a;
+        --muted: #526071;
+        --soft: #eef4ff;
+        --blue: #2563eb;
+        --green: #16a34a;
+        --amber: #d97706;
+        --red: #dc2626;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 40px 0 56px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: end;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 20px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .eyebrow,
+      .mono {
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .eyebrow {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin-top: 8px;
+        font-size: clamp(28px, 4vw, 44px);
+        line-height: 1;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+        text-align: right;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+      }
+
+      .top {
+        grid-template-columns: 320px 1fr;
+        margin-top: 28px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 22px;
+      }
+
+      .score {
+        font-size: 72px;
+        font-weight: 800;
+        line-height: 0.95;
+      }
+
+      .score span {
+        color: #94a3b8;
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .badge {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        padding: 5px 10px;
+        background: #fee2e2;
+        color: var(--red);
+        font-size: 12px;
+        font-weight: 800;
+        margin-top: 14px;
+      }
+
+      .desc {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+        margin-top: 12px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .stat {
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
+
+      .stat .k {
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      .stat .v {
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      .bars {
+        display: grid;
+        gap: 12px;
+      }
+
+      .bar-row {
+        display: grid;
+        grid-template-columns: 34px minmax(180px, 1fr) minmax(120px, 300px) 58px;
+        gap: 12px;
+        align-items: center;
+        font-size: 13px;
+      }
+
+      .track {
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .fill {
+        height: 100%;
+        border-radius: inherit;
+        background: var(--red);
+      }
+
+      section {
+        margin-top: 18px;
+      }
+
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
+
+      .two {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li {
+        margin: 9px 0;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      li strong {
+        color: var(--text);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 11px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: #64748b;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      code {
+        border-radius: 4px;
+        background: #eef2f7;
+        padding: 2px 5px;
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92em;
+      }
+
+      footer {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 24px;
+      }
+
+      @media (max-width: 860px) {
+        header,
+        .top,
+        .two {
+          grid-template-columns: 1fr;
+          display: grid;
+        }
+
+        .meta {
+          text-align: left;
+        }
+
+        .bar-row {
+          grid-template-columns: 32px 1fr 52px;
+        }
+
+        .track {
+          grid-column: 1 / -1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <div class="eyebrow">Codex-Readiness Audit</div>
+          <h1>DocSearcher</h1>
+        </div>
+        <div class="meta mono">
+          Branch: <strong>main</strong><br />
+          Scored: <strong>2026-05-13</strong><br />
+          Rubric: <strong>codex-v1-100pt</strong>
+        </div>
+      </header>
+
+      <div class="grid top">
+        <article class="card">
+          <div class="eyebrow">Overall Score</div>
+          <div class="score">6<span>/100</span></div>
+          <div class="badge">Codex-Hostile</div>
+          <p class="desc">
+            현재 레포는 Codex가 안전하게 진입하고 검증하기 위한 컨텍스트, 로컬 워크플로,
+            아키텍처 지도, 안전 경계가 대부분 문서화되어 있지 않습니다.
+          </p>
+          <div class="stats">
+            <div class="stat"><div class="k mono">Modules</div><div class="v">3</div></div>
+            <div class="stat"><div class="k mono">Contexts</div><div class="v">1</div></div>
+            <div class="stat"><div class="k mono">Large Files</div><div class="v">2</div></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="section-title">
+            <h2>Category Scores</h2>
+            <span class="mono" style="color: #64748b">7 categories / 100 points</span>
+          </div>
+          <div class="bars">
+            <div class="bar-row"><strong>A</strong><span>Codex Navigation & Scope Coverage</span><div class="track"><div class="fill" style="width: 0%"></div></div><span class="mono">0/15</span></div>
+            <div class="bar-row"><strong>B</strong><span>AGENTS.md / Context Quality</span><div class="track"><div class="fill" style="width: 20%"></div></div><span class="mono">4/20</span></div>
+            <div class="bar-row"><strong>C</strong><span>Local Development Workflow Clarity</span><div class="track"><div class="fill" style="width: 0%"></div></div><span class="mono">0/15</span></div>
+            <div class="bar-row"><strong>D</strong><span>Cross-Module Dependency Mapping</span><div class="track"><div class="fill" style="width: 0%"></div></div><span class="mono">0/15</span></div>
+            <div class="bar-row"><strong>E</strong><span>Verification Gates & Testability</span><div class="track"><div class="fill" style="width: 10%"></div></div><span class="mono">2/20</span></div>
+            <div class="bar-row"><strong>F</strong><span>Safety, Secrets & Change Boundaries</span><div class="track"><div class="fill" style="width: 0%"></div></div><span class="mono">0/10</span></div>
+            <div class="bar-row"><strong>G</strong><span>Agent Outcome Evidence</span><div class="track"><div class="fill" style="width: 0%"></div></div><span class="mono">0/5</span></div>
+          </div>
+        </article>
+      </div>
+
+      <section class="grid two">
+        <article class="card">
+          <div class="section-title"><h2>Weakest Areas</h2></div>
+          <ul>
+            <li><strong>Navigation:</strong> <code>cmd</code>, <code>goHwpTxt</code>, <code>internal</code>에 module-level Codex context가 없습니다.</li>
+            <li><strong>Workflow:</strong> setup, test, lint, build, typecheck, done criteria가 Codex용 quick commands로 정리되어 있지 않습니다.</li>
+            <li><strong>Safety:</strong> secrets, generated files, destructive command, user-change 보존 경계가 문서화되어 있지 않습니다.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <div class="section-title"><h2>Large File Risk</h2></div>
+          <ul>
+            <li><code>goHwpTxt/pkg/hwp3/hnc2unicode_tables.go</code>: 12,728 lines</li>
+            <li><code>goHwpTxt/pkg/hwp3/hwpv3.go</code>: 535 lines</li>
+          </ul>
+          <p class="desc">큰 파일은 Codex context 비용과 편집 정확도에 직접 영향을 주므로, 문서화 개선 후 분할 또는 생성물 경계 표시가 필요합니다.</p>
+        </article>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h2>Top ROI Actions</h2>
+          <span class="mono" style="color: #64748b">priority-ranked</span>
+        </div>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Action</th><th>Effort</th><th>Impact</th><th>Priority</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>[C] AGENTS.md에 setup, test/lint/build, done criteria 보강</td><td>S · 1.0h</td><td>수정 후 검증 루프 명확화</td><td>8.0</td></tr>
+            <tr><td>2</td><td>[F] AGENTS.md에 secrets, generated files, migrations, destructive command 경계 추가</td><td>S · 1.0h</td><td>사용자 변경 보존과 민감정보 사고 방지</td><td>8.0</td></tr>
+            <tr><td>3</td><td>[A] <code>cmd</code>, <code>goHwpTxt</code>, <code>internal</code>에 AGENTS.md 신설</td><td>S · 1.5h</td><td>scope와 verification 파악 시간 단축</td><td>6.0</td></tr>
+            <tr><td>4</td><td>[D] ARCHITECTURE.md 또는 Mermaid dependency 다이어그램 추가</td><td>M · 2.5h</td><td>cross-module 영향 분석 개선</td><td>2.8</td></tr>
+            <tr><td>5</td><td>[B] 500줄 이상 파일 분할 또는 generated boundary 명시</td><td>L · 5.0h</td><td>context 비용 절감과 편집 정확도 개선</td><td>1.2</td></tr>
+            <tr><td>6</td><td>[G] <code>evals/</code> 디렉터리와 대표 task pass-rate 측정 도입</td><td>L · 6.0h</td><td>Codex 작업 회귀 측정 가능</td><td>1.0</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <footer class="mono">
+        DocSearcher · Codex 준비도 감사 · generated from codex-readiness-score.json · 2026-05-13
+      </footer>
+    </main>
+  </body>
+</html>
