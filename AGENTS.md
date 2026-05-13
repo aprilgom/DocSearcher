@@ -34,6 +34,18 @@
   - Commit: `fix(parser): 빈 pdf 텍스트 처리`
   - Branch: `fix/parser-handle-empty-pdf-text`
 
+## Pull Request Conventions
+- Use the PR title format `<type>(<scope>): <subject>`.
+- Reuse the branch and commit `type` and `scope` in the PR title.
+- Write PR titles in Korean, using an imperative, concise `<subject>`.
+- Write PR descriptions in Korean and keep them concise.
+- Include these items in the PR description:
+  - Summary of the user-visible or agent-facing change.
+  - Verification commands run, or the exact reason verification was skipped.
+  - Any known follow-up work, risk, or platform-specific limitation.
+- When creating a PR for documentation-only changes, mention in Korean that Go tests were not run because no Go code changed.
+- Use draft PRs only when follow-up review, additional validation, or unfinished work remains.
+
 ## Change Boundaries
 - Do not commit local runtime data: `config.json`, `hwp-index.bleve/`, or real test documents under `goHwpTxt/testdata/`.
 - Treat `goHwpTxt/pkg/hwp3/hnc2unicode_tables.go` as table data; avoid broad formatting-only edits there.
