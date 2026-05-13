@@ -3,8 +3,8 @@ package indexer
 import (
 	"hwp-searcher/internal/domain"
 	"hwp-searcher/internal/scanner"
+	"hwp-searcher/internal/worker"
 	"log"
-	"sync"
 	"sync/atomic"
 )
 
@@ -47,13 +47,11 @@ func (r Runner) Start(root string) {
 		log.Println("Starting index of", root)
 
 		jobs := make(chan string, 100)
-		var wg sync.WaitGroup
-
-		// Start workers
-		for i := 0; i < 4; i++ { // 4 workers
-			wg.Add(1)
-			go r.worker(jobs, &wg)
-		}
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			worker.Pool{Size: 4}.Run(jobs, r.IndexFile)
+		}()
 
 		err := scanner.Walk(root, func(path string) error {
 			jobs <- path
@@ -64,16 +62,9 @@ func (r Runner) Start(root string) {
 		}
 
 		close(jobs)
-		wg.Wait()
+		<-done
 		log.Println("Indexing complete")
 	}()
-}
-
-func (r Runner) worker(jobs <-chan string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	for path := range jobs {
-		r.IndexFile(path)
-	}
 }
 
 func IsSupportedDocumentFile(path string) bool {
