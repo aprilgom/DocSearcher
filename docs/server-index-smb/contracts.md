@@ -19,6 +19,8 @@ root_id       = documents
 relative_path = shared/2026/sample.hwp
 document_id   = documents:shared/2026/sample.hwp
 server_path   = /data/documents/shared/2026/sample.hwp
+smb_unc       = \\docserver\documents
+smb_url       = smb://docserver/documents
 ```
 
 Rules:
@@ -29,6 +31,8 @@ Rules:
 - `document_id` is `root_id + ":" + relative_path`.
 - `server_path` is server-only operational state for parsing, watching, and
   re-indexing.
+- SMB is the primary open backend. Each server document root should describe the
+  Samba share that exposes the same root to desktop clients.
 - Search results expose `root_id` and `relative_path`, not openable Linux paths.
 
 Validation rules:
@@ -55,7 +59,9 @@ Server-side runtime config describes indexed document roots:
     {
       "id": "documents",
       "name": "문서 공유",
-      "server_path": "/data/documents"
+      "server_path": "/data/documents",
+      "smb_host": "docserver",
+      "smb_share": "documents"
     }
   ]
 }
@@ -68,6 +74,14 @@ Server config rules:
 
 - `id` must satisfy the `root_id` validation rules and be unique.
 - `server_path` must be absolute after `filepath.Clean`.
+- `smb_host` is the hostname, DNS name, Tailscale name, or IP address clients use
+  to reach the Samba server.
+- `smb_share` is the Samba share name, which may differ from the final
+  `server_path` folder name.
+- Windows UNC paths are derived from `smb_host`, `smb_share`, and
+  `relative_path`.
+- macOS SMB URLs are derived from `smb_host`, `smb_share`, and `relative_path`;
+  the desktop client still opens files through the mounted filesystem path.
 - Overlapping roots are allowed. If multiple roots contain the same file, the
   most specific matching root owns that file.
 - A parent root scan must skip subtrees owned by more specific child roots so
@@ -77,7 +91,18 @@ Server config rules:
 
 ## Client Config
 
-Client-side runtime config maps server root IDs to local SMB mount locations:
+SMB share metadata in `document_roots` is the primary source for open
+resolution. Client-side mount config is an override or local state, not the main
+contract.
+
+Windows clients should open search hits through the derived UNC path by default:
+
+```text
+\\docserver\documents\shared\2026\sample.hwp
+```
+
+Client-side runtime config may map server root IDs to local SMB mount locations
+when a machine needs a local override:
 
 ```json
 {
@@ -103,10 +128,12 @@ per user and operating system.
 Client config rules:
 
 - A mount key must match a server `root_id`.
+- Windows clients should prefer the server-derived UNC path unless the user
+  explicitly chooses a drive-letter or local override.
 - Windows mounts may be drive-letter roots such as `Z:\` or UNC roots such as
   `\\docserver\documents`.
-- macOS mounts should be local mounted paths such as `/Volumes/documents`, not
-  `smb://` URLs, because open/reveal actions operate on filesystem paths.
+- macOS clients use `smb://host/share` to identify or mount the share, then open
+  files through local mounted paths such as `/Volumes/documents`.
 - The client must join mount roots and `relative_path` with OS path APIs and
   reject any joined result that escapes the configured mount root after
   cleaning.
@@ -130,6 +157,8 @@ Expected behavior:
 - The desktop client receives `root_id` and `relative_path` for open/reveal
   actions.
 - The API must not treat Linux `server_path` values as client-openable paths.
+- The desktop client may read root metadata such as `smb_host` and `smb_share`
+  from a config/root endpoint, but search hits should remain logical and compact.
 - Browser-only usage may show result metadata and copyable paths, but native
   open/reveal actions are available only through a desktop client bridge.
 
@@ -138,22 +167,23 @@ Expected behavior:
 ```text
 1. User searches from desktop client.
 2. Server returns root_id=documents and relative_path=shared/2026/sample.hwp.
-3. Client looks up the local mount for documents.
-4. Client joins the mount path and relative path using OS path rules.
+3. Client loads root metadata for documents.
+4. Windows clients derive a UNC path from `smb_host`, `smb_share`, and
+   `relative_path`; macOS clients find or create a local mount from the SMB URL.
 5. Client asks the OS shell to open or reveal the resulting path.
 ```
 
 Windows:
 
 ```text
-documents -> Z:\
-shared/2026/sample.hwp -> Z:\shared\2026\sample.hwp
+documents -> \\docserver\documents
+shared/2026/sample.hwp -> \\docserver\documents\shared\2026\sample.hwp
 ```
 
 macOS:
 
 ```text
-documents -> /Volumes/documents
+smb://docserver/documents -> /Volumes/documents
 shared/2026/sample.hwp -> /Volumes/documents/shared/2026/sample.hwp
 ```
 
@@ -169,11 +199,12 @@ Error handling:
 
 The client should classify open errors before falling back to a generic failure:
 
-1. Missing mount mapping for `root_id`.
-2. Resolved path escapes the mount root after cleaning.
-3. Resolved SMB path does not exist or the share is unavailable.
-4. OS permission denial.
-5. Shell/default-app open failure.
+1. Missing root metadata for `root_id`.
+2. Missing SMB share metadata or local mount mapping for the current platform.
+3. Resolved path escapes the UNC/share/mount root after cleaning.
+4. Resolved SMB path does not exist or the share is unavailable.
+5. OS permission denial.
+6. Shell/default-app open failure.
 
 ## Indexing And Watch Rules
 

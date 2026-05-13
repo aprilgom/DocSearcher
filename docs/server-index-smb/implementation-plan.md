@@ -9,7 +9,8 @@ Likely affected areas:
 
 - `internal/domain`: document identity, search hit fields, document root value
   types.
-- `internal/infra/config`: persisted server document roots.
+- `internal/infra/config`: persisted server document roots and Samba share
+  metadata.
 - `internal/usecase`: indexing path-to-document conversion and watch path
   handling.
 - `internal/infra/search`: Bleve stored fields and search result hydration.
@@ -17,7 +18,7 @@ Likely affected areas:
 - `web/templates`: result click/double-click behavior.
 - `cmd/client`: existing Windows WebView2 client behavior until the Wails client
   replaces it.
-- Wails desktop client: cross-platform mount mapping, path resolution,
+- Wails desktop client: SMB UNC/mount resolution, optional mount overrides,
   open/reveal behavior, and user-facing open errors.
 - Tests for domain, config, indexing, search, server fragments, and client path
   joining.
@@ -26,7 +27,7 @@ Estimated implementation size:
 
 ```text
 Central index model and server changes: 500-900 LOC
-Windows client mount mapping/open UX:   150-300 LOC
+Windows SMB open UX:                   150-300 LOC
 Tests and fixtures:                     300-600 LOC
 Total first implementation:             800-1,500 LOC
 ```
@@ -39,7 +40,8 @@ until the Wails replacement is introduced.
 
 The Wails client owns:
 
-- local mount configuration by `root_id`.
+- SMB open resolution from server-provided root metadata.
+- optional local mount overrides by `root_id`.
 - OS-native open and reveal actions.
 - platform-specific path joining and availability checks.
 - user-facing errors for missing mounts, missing files, and permission failures.
@@ -70,6 +72,11 @@ features should be designed against the Wails client.
   server-only and optional.
 - [x] Allow overlapping roots, with each file owned by the most specific
   matching root.
+- [x] Use SMB/Samba as the primary native open backend.
+- [x] Store Samba share metadata on server document roots; Windows opens use
+  derived UNC paths by default.
+- [x] Treat client mount mappings as optional overrides or macOS local mount
+  state, not the primary open contract.
 
 ### Implementation Tasks
 
@@ -79,7 +86,10 @@ Server contracts:
   IDs.
 - [ ] Add validation for `root_id`, `relative_path`, and logical document ID
   parsing.
-- [ ] Add server-side `document_roots` config.
+- [ ] Add server-side `document_roots` config with `smb_host` and `smb_share`
+  fields.
+- [ ] Add validation for required SMB share metadata when native open behavior
+  is enabled for a root.
 - [ ] Read legacy `watched_paths` as transition input and normalize them into
   generated document roots where possible.
 - [ ] Keep current watched-path behavior only where needed for compatibility,
@@ -102,6 +112,8 @@ Search API and web UI:
 
 - [ ] Return search hits with logical path fields.
 - [ ] Update web result actions to pass `root_id` and `relative_path`.
+- [ ] Add a root metadata endpoint or equivalent payload for desktop clients to
+  resolve `root_id` into SMB share metadata.
 - [ ] Display root name and relative path instead of raw server absolute paths.
 - [ ] Keep browser-only result actions separate from desktop-client open/reveal
   actions.
@@ -110,8 +122,11 @@ Wails desktop client:
 
 - [ ] Let Wails coexist with `cmd/client` until Windows behavior is
   feature-complete, then retire `cmd/client` in a separate cleanup.
-- [ ] Add Wails client support for resolving root mounts into local SMB paths.
-- [ ] Support Windows drive-letter mounts and UNC mounts.
+- [ ] Resolve Windows open paths from `smb_host`, `smb_share`, and
+  `relative_path` into UNC paths.
+- [ ] Support drive-letter mounts as optional Windows overrides.
+- [ ] Resolve macOS open paths by finding or mounting `smb://host/share`, then
+  joining the local mounted path with `relative_path`.
 - [ ] Reject path joins that escape the configured mount root.
 - [ ] Open files through OS-native shell/default app behavior.
 - [ ] Add "show in folder" behavior.
@@ -139,8 +154,10 @@ input. New deployments should use `document_roots`.
 Transition rules:
 
 - If only `watched_paths` exists, load each path as a generated document root
-  with a stable derived ID, then prompt operators to save explicit
-  `document_roots`.
+  for scan compatibility, then prompt operators to save explicit
+  `document_roots` with operator-defined `id`, `smb_host`, and `smb_share`.
+- Do not rely on generated legacy root IDs for SMB open behavior. Native SMB
+  open requires explicit document roots with Samba share metadata.
 - If both `document_roots` and `watched_paths` exist, prefer
   `document_roots`.
 - After one release, remove writes to `watched_paths`; later removal of read
@@ -150,9 +167,7 @@ Transition rules:
 
 ## Remaining Open Questions
 
-- What naming convention should generated root IDs use for legacy
-  `watched_paths` when no operator-supplied ID exists?
 - Should server diagnostics expose `server_path` to admins through a protected
   endpoint, or only logs?
-- How should the UI guide desktop users to create a missing mount mapping for a
-  returned `root_id`?
+- How should the UI guide operators or desktop users when a returned `root_id`
+  lacks SMB share metadata or a required local mount override?

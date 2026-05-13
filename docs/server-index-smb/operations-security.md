@@ -12,11 +12,12 @@ Linux document server
     /data/documents -> \\docserver\documents
 
 Windows client
-  Mounts the same share as \\docserver\documents or Z:\
+  Opens the derived UNC path \\docserver\documents\...
+  May optionally use a drive-letter override such as Z:\
   Opens search hits through the OS shell/default app
 
 macOS client
-  Mounts the same share as smb://docserver/documents
+  Locates or mounts the same share as smb://docserver/documents
   Opens search hits through /Volumes/documents or another mounted path
 
 Tailscale
@@ -25,6 +26,18 @@ Tailscale
 
 Clients do not build local indexes. The Linux server owns document storage,
 filesystem watching, parsing, and indexing.
+
+The DocSearcher server root and Samba share should be configured together:
+
+```text
+document_root.id       = documents
+document_root.server_path = /data/documents
+document_root.smb_host = docserver
+document_root.smb_share = documents
+```
+
+The Samba share name does not have to match the final folder name, but it must
+identify the share that exposes the configured `server_path`.
 
 ## Security Model
 
