@@ -3,228 +3,85 @@ package search
 import (
 	"fmt"
 	"hwp-searcher/internal/domain"
-	"os"
-	"reflect"
-	"sync"
+	"path/filepath"
+	"strings"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
-	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
-	"github.com/blevesearch/bleve/v2/analysis/token/ngram"
-	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
-	"github.com/blevesearch/bleve/v2/mapping"
 )
 
 type Engine struct {
-	indexPath string
-	index     bleve.Index
-	mu        sync.RWMutex
+	store  *indexStore
+	codec  documentCodec
+	mapper hitMapper
 }
 
 func NewEngine(indexPath string) (*Engine, error) {
-	engine := &Engine{}
-	if err := engine.Init(indexPath); err != nil {
+	normalizedPath, err := normalizeIndexPath(indexPath)
+	if err != nil {
 		return nil, err
 	}
-	return engine, nil
-}
 
-// Init initializes the Bleve index with N-gram mapping
-func (e *Engine) Init(indexPath string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	fmt.Printf("Initializing index at %s\n", indexPath)
-	e.indexPath = indexPath
-
-	var err error
-	if _, statErr := os.Stat(indexPath); os.IsNotExist(statErr) {
-		fmt.Println("Index does not exist, creating new...")
-		indexMapping := buildIndexMapping()
-		e.index, err = bleve.New(indexPath, indexMapping)
-	} else {
-		fmt.Println("Index exists, opening...")
-		e.index, err = bleve.Open(indexPath)
-		// Auto-recovery: If open fails, try to recreate
-		if err != nil {
-			fmt.Printf("Failed to open index: %v. Attempting to recreate...\n", err)
-			removeErr := os.RemoveAll(indexPath)
-			if removeErr != nil {
-				return fmt.Errorf("failed to remove corrupted index: %w", removeErr)
-			}
-			indexMapping := buildIndexMapping()
-			e.index, err = bleve.New(indexPath, indexMapping)
-		}
+	store := newIndexStore(normalizedPath)
+	if err := store.open(); err != nil {
+		return nil, err
 	}
-
-	if err != nil {
-		return fmt.Errorf("failed to open/create index: %w", err)
-	}
-
-	if e.index == nil {
-		return fmt.Errorf("bleve returned nil index with no error")
-	}
-
-	return nil
-}
-
-func buildIndexMapping() mapping.IndexMapping {
-	policy := domain.PersonNameSearchPolicy()
 	schema := domain.DefaultIndexSchema()
-	indexMapping := bleve.NewIndexMapping()
-
-	// 1. Define N-gram Token Filter
-	err := indexMapping.AddCustomTokenFilter("ngram_filter", map[string]interface{}{
-		"type": ngram.Name,
-		"min":  float64(policy.PartialMatchMinGram),
-		"max":  float64(policy.PartialMatchMaxGram),
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// 2. Define Lowercase Token Filter (alias)
-	// We explicitly define it to ensure it's available as "lowercase"
-	err = indexMapping.AddCustomTokenFilter("lowercase", map[string]interface{}{
-		"type": lowercase.Name,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// 3. Define Custom Analyzer (Unicode Tokenizer + N-gram Filter + Lowercase)
-	err = indexMapping.AddCustomAnalyzer("ngram_analyzer", map[string]interface{}{
-		"type":      custom.Name,
-		"tokenizer": unicode.Name,
-		"token_filters": []string{
-			"ngram_filter",
-			"lowercase",
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// 4. Define Document Mapping
-	docMapping := bleve.NewDocumentMapping()
-
-	// Field: content (Uses N-gram Analyzer)
-	contentFieldMapping := bleve.NewTextFieldMapping()
-	contentFieldMapping.Analyzer = "ngram_analyzer"
-	docMapping.AddFieldMappingsAt(schema.ContentField, contentFieldMapping)
-
-	// Field: content_nospace (Uses N-gram Analyzer - for person-name search without spaces)
-	nospaceFieldMapping := bleve.NewTextFieldMapping()
-	nospaceFieldMapping.Analyzer = "ngram_analyzer"
-	docMapping.AddFieldMappingsAt(schema.ContentNoSpaceField, nospaceFieldMapping)
-
-	// Field: path (Stored, not analyzed for full text search usually, but good to have)
-	pathFieldMapping := bleve.NewTextFieldMapping()
-	pathFieldMapping.Store = true
-	docMapping.AddFieldMappingsAt(schema.PathField, pathFieldMapping)
-
-	indexMapping.DefaultMapping = docMapping
-
-	return indexMapping
+	return &Engine{
+		store:  store,
+		codec:  newDocumentCodec(schema),
+		mapper: newHitMapper(schema),
+	}, nil
 }
 
-func (e *Engine) indexDocument(id string, content string, contentNoSpace string) error {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	// Robust nil check
-	if e.index == nil || (reflect.ValueOf(e.index).Kind() == reflect.Ptr && reflect.ValueOf(e.index).IsNil()) {
-		return fmt.Errorf("index is closed or nil")
+func normalizeIndexPath(indexPath string) (string, error) {
+	indexPath = strings.TrimSpace(indexPath)
+	if indexPath == "" {
+		return "", fmt.Errorf("index path is empty")
 	}
 
-	schema := domain.DefaultIndexSchema()
-	return e.index.Index(id, map[string]string{
-		schema.ContentField:        content,
-		schema.ContentNoSpaceField: contentNoSpace,
-		schema.PathField:           id,
-	})
+	absPath, err := filepath.Abs(indexPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve index path: %w", err)
+	}
+	cleanPath := filepath.Clean(absPath)
+	rootPath := filepath.Clean(filepath.VolumeName(cleanPath) + string(filepath.Separator))
+	if cleanPath == rootPath {
+		return "", fmt.Errorf("index path must not be a filesystem root: %s", cleanPath)
+	}
+	if filepath.Ext(cleanPath) != ".bleve" {
+		return "", fmt.Errorf("index path must use .bleve extension: %s", cleanPath)
+	}
+
+	return cleanPath, nil
+}
+
+func (e *Engine) indexDocument(doc domain.IndexedDocument) error {
+	return e.store.indexDocument(string(doc.ID), e.codec.fieldMap(doc))
 }
 
 func (e *Engine) IndexDocument(doc domain.IndexedDocument) error {
-	return e.indexDocument(string(doc.ID), doc.Content, doc.ContentNoSpace)
+	return e.indexDocument(doc)
 }
 
 func (e *Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
-	exact := req.Mode == domain.SearchModeExact
-	ignoreSpaces := req.Mode == domain.SearchModeIgnoreSpaces
-	schema := domain.DefaultIndexSchema()
-
-	result, err := e.search(req.Query, exact, ignoreSpaces)
+	result, err := e.search(req)
 	if err != nil {
 		return domain.SearchResult{}, err
 	}
 
-	hits := make([]domain.SearchHit, 0, len(result.Hits))
-	for _, hit := range result.Hits {
-		fragment := ""
-		if len(hit.Fragments[schema.ContentField]) > 0 {
-			fragment = hit.Fragments[schema.ContentField][0]
-		}
-		if ignoreSpaces && len(hit.Fragments[schema.ContentNoSpaceField]) > 0 {
-			fragment = hit.Fragments[schema.ContentNoSpaceField][0]
-		}
-
-		hits = append(hits, domain.SearchHit{
-			ID:       domain.DocumentID(hit.ID),
-			Fragment: fragment,
-		})
-	}
-
-	return domain.SearchResult{
-		Total: result.Total,
-		Hits:  hits,
-	}, nil
+	return e.mapper.searchResult(result, req), nil
 }
 
-func (e *Engine) search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchResult, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	if e.index == nil {
-		return nil, fmt.Errorf("index is closed")
-	}
-
-	var searchRequest *bleve.SearchRequest
-	schema := domain.DefaultIndexSchema()
-
-	if ignoreSpaces {
-		query := bleve.NewMatchQuery(queryStr)
-		query.FieldVal = schema.ContentNoSpaceField
-		searchRequest = bleve.NewSearchRequest(query)
-	} else if exactMatch {
-		query := bleve.NewMatchPhraseQuery(queryStr)
-		query.FieldVal = schema.ContentField
-		searchRequest = bleve.NewSearchRequest(query)
-	} else {
-		query := bleve.NewQueryStringQuery(queryStr)
-		searchRequest = bleve.NewSearchRequest(query)
-	}
-
-	searchRequest.Fields = []string{schema.PathField, schema.ContentField}
-	searchRequest.Highlight = bleve.NewHighlight()
-	return e.index.Search(searchRequest)
+func (e *Engine) search(req domain.SearchRequest) (*bleve.SearchResult, error) {
+	return e.store.search(buildSearchRequest(req, domain.DefaultIndexSchema()))
 }
 
 func (e *Engine) Count() (uint64, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	if e.index == nil {
-		return 0, fmt.Errorf("index is closed")
-	}
-	return e.index.DocCount()
+	return e.store.count()
 }
 
 func (e *Engine) deleteDocument(id string) error {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	if e.index == nil {
-		return fmt.Errorf("index is closed")
-	}
-	return e.index.Delete(id)
+	return e.store.deleteDocument(id)
 }
 
 func (e *Engine) DeleteDocument(id domain.DocumentID) error {
@@ -232,49 +89,9 @@ func (e *Engine) DeleteDocument(id domain.DocumentID) error {
 }
 
 func (e *Engine) Reset() error {
-	return e.ResetIndex(e.indexPath)
+	return e.store.reset()
 }
 
 func (e *Engine) Close() error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.index == nil {
-		return nil
-	}
-	err := e.index.Close()
-	e.index = nil
-	return err
-}
-
-// ResetIndex closes, deletes, and re-initializes the index
-func (e *Engine) ResetIndex(indexPath string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if e.index != nil {
-		e.index.Close()
-		e.index = nil
-	}
-	err := os.RemoveAll(indexPath)
-	if err != nil {
-		return err
-	}
-
-	// Re-init (Init locks, but we are already locked, so we need to call internal init or unlock)
-	// Since Init is exported and locks, we should extract the logic or just unlock before calling Init.
-	// But Init checks file existence which we just deleted.
-
-	// Let's just inline the Init logic here to avoid deadlock or recursive lock issues,
-	// OR unlock and call Init. Unlocking is safer if Init does complex things, but here it's fine.
-	// However, if we unlock, another thread might jump in.
-	// Better to extract internal init logic.
-
-	indexMapping := buildIndexMapping()
-	newIndex, err := bleve.New(indexPath, indexMapping)
-	if err != nil {
-		return err
-	}
-	e.indexPath = indexPath
-	e.index = newIndex
-	return nil
+	return e.store.close()
 }
