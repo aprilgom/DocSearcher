@@ -45,10 +45,10 @@ func main() {
 
 	fileIndexer := usecase.NewIndexer(parser.TextExtractor{}, searchEngine)
 	indexRunner := usecase.NewIndexRunner(fileIndexer.IndexFile)
-	watchRegistry := watcher.Registry{StartIndexing: indexRunner.Start}
 	configStore := config.NewStore(config.ConfigFile)
+	fileWatcher := watcher.New(fileHandler{indexer: fileIndexer})
+	watchRegistry := watcher.Registry{Watcher: fileWatcher, StartIndexing: indexRunner.Start}
 	watchPaths := usecase.NewWatchPaths(configStore, watchRegistry)
-	watcher.SetFileHandler(fileHandler{indexer: fileIndexer})
 
 	handlers := server.Handlers{
 		Searcher:   usecase.NewSearcher(searchEngine),
@@ -58,7 +58,10 @@ func main() {
 	}
 
 	// Start Watcher
-	watcher.Start()
+	if err := fileWatcher.Start(); err != nil {
+		log.Fatal("Failed to start watcher:", err)
+	}
+	defer fileWatcher.Close()
 	if err := watchPaths.Start(); err != nil {
 		log.Println("Failed to start watchers:", err)
 	}
