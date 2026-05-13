@@ -5,9 +5,13 @@
 - The root module is `hwp-searcher`; the local `goHwpTxt` module is replaced from `./goHwpTxt`.
 
 ## Commands
+- Setup dependencies: `go mod download`
 - Run server: `go run ./cmd/app`
 - Run WebView client: `go run ./cmd/client`
 - Test all packages: `go test ./...`
+- macOS/Linux verification without Windows client: `go test $(go list ./... | grep -v '/cmd/client$')`
+- Test local HWP parser module: `cd goHwpTxt && go test ./...`
+- Build server: `go build ./cmd/app`
 
 ## Navigation
 - `cmd/app` - search server entrypoint.
@@ -40,5 +44,8 @@
 - When asked to "PR 올려" or "올려", create the pull request after pushing the branch; do not stop at reporting the PR creation URL.
 
 ## Done Criteria
-- Run `go test ./...` before reporting completion when Go code changes.
-- If a check cannot be run, report the reason and the residual risk.
+- For Go code changes, run `go test ./...` unless the current platform cannot build `cmd/client`.
+- On macOS/Linux, use `go test $(go list ./... | grep -v '/cmd/client$')` and report that `cmd/client` is Windows-only.
+- For parser changes that touch `goHwpTxt`, also run `cd goHwpTxt && go test ./...`.
+- For documentation-only changes, Go tests may be skipped; report that no Go code changed.
+- If any check cannot be run, report the exact command, reason, and residual risk.
