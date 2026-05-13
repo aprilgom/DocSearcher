@@ -8,6 +8,8 @@
 - Run server: `go run ./cmd/app`
 - Run WebView client: `go run ./cmd/client`
 - Test all packages: `go test ./...`
+- Pre-commit checks live in `.githooks/pre-commit`; enable them with `git config core.hooksPath .githooks`.
+- On macOS, `go test ./...` currently fails in `cmd/client` because the Windows WebView client does not build there; the pre-commit hook excludes `cmd/client` and tests the remaining root packages plus `goHwpTxt`.
 
 ## Navigation
 - `cmd/app` - search server entrypoint.
