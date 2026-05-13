@@ -6,7 +6,7 @@ import (
 	"hwp-searcher/internal/domain"
 	"log"
 	"net/http"
-	"strings"
+	"net/url"
 	"time"
 )
 
@@ -35,6 +35,30 @@ type Handlers struct {
 	Resetter   IndexResetter
 }
 
+var responseTemplates = template.Must(template.New("server-responses").Parse(`
+{{define "error"}}<div class='text-red-500'>{{.}}</div>{{end}}
+{{define "searchTime"}}<div id='search-time' hx-swap-oob='true'>{{.Duration}} ({{.Total}} hits)</div>{{end}}
+{{define "noResults"}}<div class='text-center text-gray-500 py-10'>No results found</div>{{end}}
+{{define "searchHit"}}
+			<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition">
+				<div class="text-xs text-gray-500 mb-1">{{.ID}}</div>
+				<div class="text-sm text-gray-800">{{.Fragment}}</div>
+				<button class="mt-2 text-xs text-indigo-600 cursor-pointer hover:underline bg-transparent border-none p-0"
+					onclick="triggerOpen('{{.Path}}')">Open File</button>
+			</div>
+{{end}}
+{{define "watchedPath"}}
+			<li class="flex justify-between items-center bg-gray-50 p-2 rounded">
+				<span class="text-sm text-gray-700 truncate">{{.Path}}</span>
+				<button hx-delete="/api/watch?path={{.DeletePath}}" hx-target="#watched-list" class="text-red-500 hover:text-red-700 text-xs font-bold px-2">
+					Remove
+				</button>
+			</li>
+{{end}}
+{{define "stats"}}<span>{{.DocumentCount}} docs | {{.WatchedPathCount}} watched | {{.Status}}</span>{{end}}
+{{define "resetSuccess"}}<div class='text-green-600'>Index reset! Re-indexing started...</div>{{end}}
+`))
+
 func NewMux(handlers Handlers) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", homeHandler)
@@ -49,6 +73,16 @@ func NewMux(handlers Handlers) http.Handler {
 func Start(port string, handlers Handlers) {
 	log.Printf("Server starting on http://localhost:%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, NewMux(handlers)))
+}
+
+func render(w http.ResponseWriter, name string, data any) {
+	if err := responseTemplates.ExecuteTemplate(w, name, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func renderError(w http.ResponseWriter, message string, err error) {
+	render(w, "error", fmt.Sprintf("%s: %v", message, err))
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -71,30 +105,34 @@ func searchHandler(handlers Handlers) http.HandlerFunc {
 		duration := time.Since(start)
 
 		if err != nil {
-			fmt.Fprintf(w, "<div class='text-red-500'>Error: %v</div>", err)
+			renderError(w, "Error", err)
 			return
 		}
 
 		// HTMX OOB swap for time
-		fmt.Fprintf(w, "<div id='search-time' hx-swap-oob='true'>%s (%d hits)</div>", duration.Round(time.Millisecond), res.Total)
+		render(w, "searchTime", struct {
+			Duration time.Duration
+			Total    uint64
+		}{
+			Duration: duration.Round(time.Millisecond),
+			Total:    res.Total,
+		})
 
 		if res.Total == 0 {
-			fmt.Fprint(w, "<div class='text-center text-gray-500 py-10'>No results found</div>")
+			render(w, "noResults", nil)
 			return
 		}
 
 		for _, hit := range res.Hits {
-			// Escape backslashes for JavaScript string
-			escapedPath := strings.ReplaceAll(string(hit.ID), "\\", "\\\\")
-
-			fmt.Fprintf(w, `
-			<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition">
-				<div class="text-xs text-gray-500 mb-1">%s</div>
-				<div class="text-sm text-gray-800">%s</div>
-				<button class="mt-2 text-xs text-indigo-600 cursor-pointer hover:underline bg-transparent border-none p-0" 
-					onclick="triggerOpen('%s')">Open File</button>
-			</div>
-		`, hit.ID, hit.Fragment, escapedPath)
+			render(w, "searchHit", struct {
+				ID       domain.DocumentID
+				Fragment string
+				Path     string
+			}{
+				ID:       hit.ID,
+				Fragment: hit.Fragment,
+				Path:     string(hit.ID),
+			})
 		}
 	}
 }
@@ -103,14 +141,13 @@ func configHandler(handlers Handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Return list of watched paths as HTML list items
 		for _, path := range handlers.WatchPaths.List() {
-			fmt.Fprintf(w, `
-			<li class="flex justify-between items-center bg-gray-50 p-2 rounded">
-				<span class="text-sm text-gray-700 truncate">%s</span>
-				<button hx-delete="/api/watch?path=%s" hx-target="#watched-list" class="text-red-500 hover:text-red-700 text-xs font-bold px-2">
-					Remove
-				</button>
-			</li>
-		`, path, path)
+			render(w, "watchedPath", struct {
+				Path       domain.WatchedPath
+				DeletePath string
+			}{
+				Path:       path,
+				DeletePath: url.QueryEscape(string(path)),
+			})
 		}
 	}
 }
@@ -127,9 +164,15 @@ func watchHandler(handlers Handlers) http.HandlerFunc {
 		}
 
 		if r.Method == "POST" {
-			_ = handlers.WatchPaths.Add(path)
+			if err := handlers.WatchPaths.Add(path); err != nil {
+				renderError(w, "Add failed", err)
+				return
+			}
 		} else if r.Method == "DELETE" {
-			_ = handlers.WatchPaths.Remove(path)
+			if err := handlers.WatchPaths.Remove(path); err != nil {
+				renderError(w, "Remove failed", err)
+				return
+			}
 		}
 
 		// Re-render the list
@@ -139,12 +182,24 @@ func watchHandler(handlers Handlers) http.HandlerFunc {
 
 func statsHandler(handlers Handlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		stats, _ := handlers.Stats.Current()
+		stats, err := handlers.Stats.Current()
+		if err != nil {
+			renderError(w, "Stats failed", err)
+			return
+		}
 		status := "Idle"
 		if stats.Indexing {
 			status = "Indexing..."
 		}
-		fmt.Fprintf(w, "<span>%d docs | %d watched | %s</span>", stats.DocumentCount, stats.WatchedPathCount, status)
+		render(w, "stats", struct {
+			DocumentCount    uint64
+			WatchedPathCount int
+			Status           string
+		}{
+			DocumentCount:    stats.DocumentCount,
+			WatchedPathCount: stats.WatchedPathCount,
+			Status:           status,
+		})
 	}
 }
 
@@ -156,10 +211,10 @@ func resetHandler(handlers Handlers) http.HandlerFunc {
 
 		err := handlers.Resetter.ResetIndex()
 		if err != nil {
-			fmt.Fprintf(w, "<div class='text-red-500'>Reset failed: %v</div>", err)
+			renderError(w, "Reset failed", err)
 			return
 		}
 
-		fmt.Fprint(w, "<div class='text-green-600'>Index reset! Re-indexing started...</div>")
+		render(w, "resetSuccess", nil)
 	}
 }
