@@ -2,6 +2,7 @@
 
 This directory tracks lightweight outcome evidence for Codex work on DocSearcher.
 It is intentionally docs/stdlib only.
+For repo workflow, see [../AGENTS.md](../AGENTS.md) and [../ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## Current Baseline
 
@@ -77,4 +78,3 @@ evidence in a PR, include:
 - If a verification command cannot run, record the exact reason and residual risk.
 - For documentation-only changes, state that Go tests were skipped because no Go
   code changed.
-- Update the baseline after running the readiness scorer again, not by guessing.
