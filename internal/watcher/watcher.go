@@ -3,10 +3,10 @@ package watcher
 import (
 	"hwp-searcher/internal/config"
 	"hwp-searcher/internal/domain"
+	"hwp-searcher/internal/scanner"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -157,9 +157,5 @@ func handleEvent(event fsnotify.Event) {
 }
 
 func isSupportedDocumentEvent(path string) bool {
-	if strings.Contains(path, "~$") || strings.HasSuffix(strings.ToLower(path), ".tmp") {
-		return false
-	}
-	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".hwp" || ext == ".hwpx" || ext == ".pdf"
+	return scanner.IsSupportedDocumentFile(path)
 }
