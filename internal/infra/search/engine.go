@@ -82,8 +82,7 @@ func openOrCreateIndex(indexPath string) (bleve.Index, error) {
 		return index, nil
 	}
 
-	log.Printf("Failed to open index: %v. Attempting to recreate...", err)
-	return recreateIndex(indexPath)
+	return nil, fmt.Errorf("open existing index %s: %w", indexPath, err)
 }
 
 func recreateIndex(indexPath string) (bleve.Index, error) {

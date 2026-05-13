@@ -108,6 +108,26 @@ func TestNewEngineCreatesIndependentIndexes(t *testing.T) {
 	}
 }
 
+func TestNewEngineDoesNotRemoveInvalidExistingIndex(t *testing.T) {
+	indexPath := filepath.Join(t.TempDir(), "invalid.bleve")
+	if err := os.Mkdir(indexPath, 0o755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+	markerPath := filepath.Join(indexPath, "marker.txt")
+	if err := os.WriteFile(markerPath, []byte("keep me"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	engine, err := NewEngine(indexPath)
+	if err == nil {
+		_ = engine.Close()
+		t.Fatalf("NewEngine succeeded, want error")
+	}
+	if _, statErr := os.Stat(markerPath); statErr != nil {
+		t.Fatalf("existing index content was removed or changed: %v", statErr)
+	}
+}
+
 func TestResetClearsIndexAndKeepsEngineUsable(t *testing.T) {
 	engine, err := NewEngine(filepath.Join(t.TempDir(), "reset.bleve"))
 	if err != nil {
