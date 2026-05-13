@@ -16,14 +16,11 @@ import (
 var (
 	IndexedCount uint64
 	IsIndexing   atomic.Bool
-	service      = app.NewService(app.Dependencies{
-		TextExtractor: parser.TextExtractor{},
-		DocumentIndex: search.Engine{},
-	})
+	fileIndexer  = app.NewIndexer(parser.TextExtractor{}, search.Engine{})
 )
 
-func SetService(s *app.Service) {
-	service = s
+func SetIndexer(indexer app.Indexer) {
+	fileIndexer = indexer
 }
 
 type Status struct{}
@@ -94,7 +91,7 @@ func NormalizeNoSpaceContent(content string) string {
 
 // IndexFile indexes a single file
 func IndexFile(path string) {
-	err := service.IndexFile(path)
+	err := fileIndexer.IndexFile(path)
 	if err != nil {
 		log.Printf("Failed to index %s: %v", path, err)
 		return
@@ -105,7 +102,7 @@ func IndexFile(path string) {
 
 // RemoveFile removes a file from the index
 func RemoveFile(path string) {
-	err := service.RemoveFile(path)
+	err := fileIndexer.RemoveFile(path)
 	if err != nil {
 		log.Println("Failed to delete index:", path, err)
 	} else {

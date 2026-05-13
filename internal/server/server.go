@@ -6,7 +6,6 @@ import (
 	"hwp-searcher/internal/app"
 	"hwp-searcher/internal/config"
 	"hwp-searcher/internal/indexer"
-	"hwp-searcher/internal/parser"
 	"hwp-searcher/internal/search"
 	"hwp-searcher/internal/watcher"
 	"log"
@@ -15,16 +14,22 @@ import (
 	"time"
 )
 
-var service = app.NewService(app.Dependencies{
-	TextExtractor:  parser.TextExtractor{},
-	DocumentIndex:  search.Engine{},
-	ConfigStore:    config.Store{},
-	WatchRegistry:  watcher.Registry{StartIndexing: indexer.Start},
-	IndexingStatus: indexer.Status{},
-})
+type Handlers struct {
+	Searcher   app.Searcher
+	WatchPaths app.WatchPaths
+	Stats      app.Stats
+	Resetter   app.IndexResetter
+}
 
-func SetService(s *app.Service) {
-	service = s
+var handlers = Handlers{
+	Searcher:   app.NewSearcher(search.Engine{}),
+	WatchPaths: app.NewWatchPaths(config.Store{}, watcher.Registry{StartIndexing: indexer.Start}),
+	Stats:      app.NewStats(search.Engine{}, config.Store{}, indexer.Status{}),
+	Resetter:   search.Engine{},
+}
+
+func SetHandlers(h Handlers) {
+	handlers = h
 }
 
 func Start(port string) {
@@ -54,7 +59,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	nospace := r.URL.Query().Get("nospace") == "true"
 
 	start := time.Now()
-	res, err := service.Search(query, exact, nospace)
+	res, err := handlers.Searcher.Search(query, exact, nospace)
 	duration := time.Since(start)
 
 	if err != nil {
@@ -87,7 +92,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	// Return list of watched paths as HTML list items
-	for _, path := range service.WatchedPaths() {
+	for _, path := range handlers.WatchPaths.List() {
 		fmt.Fprintf(w, `
 			<li class="flex justify-between items-center bg-gray-50 p-2 rounded">
 				<span class="text-sm text-gray-700 truncate">%s</span>
@@ -110,9 +115,9 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "POST" {
-		_ = service.AddWatchedPath(path)
+		_ = handlers.WatchPaths.Add(path)
 	} else if r.Method == "DELETE" {
-		_ = service.RemoveWatchedPath(path)
+		_ = handlers.WatchPaths.Remove(path)
 	}
 
 	// Re-render the list
@@ -120,7 +125,7 @@ func watchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
-	stats, _ := service.Stats()
+	stats, _ := handlers.Stats.Current()
 	status := "Idle"
 	if stats.Indexing {
 		status = "Indexing..."
@@ -133,7 +138,7 @@ func resetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := service.ResetIndex()
+	err := handlers.WatchPaths.ResetIndex(handlers.Resetter)
 	if err != nil {
 		fmt.Fprintf(w, "<div class='text-red-500'>Reset failed: %v</div>", err)
 		return
