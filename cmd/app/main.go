@@ -58,7 +58,10 @@ func main() {
 	}
 
 	// Start Watcher
-	watcher.Start(watchRegistry)
+	watcher.Start()
+	if err := watchPaths.Start(); err != nil {
+		log.Println("Failed to start watchers:", err)
+	}
 
 	// Start Server
 	server.Start("8080", handlers)

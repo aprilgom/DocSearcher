@@ -49,6 +49,12 @@ type fakeConfigStore struct {
 	paths   []domain.WatchedPath
 	added   domain.WatchedPath
 	removed domain.WatchedPath
+	loaded  bool
+}
+
+func (f *fakeConfigStore) Load() error {
+	f.loaded = true
+	return nil
 }
 
 func (f *fakeConfigStore) WatchedPaths() []domain.WatchedPath {
@@ -78,6 +84,20 @@ func (f *fakeWatchRegistry) AddPath(path domain.WatchedPath) error {
 
 func (f *fakeWatchRegistry) RemovePath(path domain.WatchedPath) error {
 	f.removed = path
+	return nil
+}
+
+type failingWatchRegistry struct {
+	added []domain.WatchedPath
+	err   error
+}
+
+func (f *failingWatchRegistry) AddPath(path domain.WatchedPath) error {
+	f.added = append(f.added, path)
+	return f.err
+}
+
+func (f *failingWatchRegistry) RemovePath(path domain.WatchedPath) error {
 	return nil
 }
 

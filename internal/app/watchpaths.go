@@ -2,8 +2,13 @@ package app
 
 import "hwp-searcher/internal/domain"
 
-type ConfigStore interface {
+type WatchPathReader interface {
 	WatchedPaths() []domain.WatchedPath
+}
+
+type ConfigStore interface {
+	WatchPathReader
+	Load() error
 	AddPath(path domain.WatchedPath) error
 	RemovePath(path domain.WatchedPath) error
 }
@@ -31,6 +36,21 @@ func NewWatchPaths(configStore ConfigStore, watchRegistry WatchRegistry) WatchPa
 
 func (w WatchPaths) List() []domain.WatchedPath {
 	return w.configStore.WatchedPaths()
+}
+
+func (w WatchPaths) Start() error {
+	if err := w.configStore.Load(); err != nil {
+		return err
+	}
+	var firstErr error
+	for _, path := range w.configStore.WatchedPaths() {
+		if err := w.watchRegistry.AddPath(path); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
 }
 
 func (w WatchPaths) Add(path string) error {

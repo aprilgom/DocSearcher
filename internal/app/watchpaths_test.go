@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"hwp-searcher/internal/domain"
 	"testing"
 )
@@ -36,6 +37,39 @@ func TestWatchPathsResetReindexesWatchedPaths(t *testing.T) {
 	}
 	if !index.reset {
 		t.Fatal("Reset was not called")
+	}
+	if len(registry.added) != 2 || registry.added[0] != "/a" || registry.added[1] != "/b" {
+		t.Fatalf("registered paths = %v, want [/a /b]", registry.added)
+	}
+}
+
+func TestWatchPathsStartLoadsStoreAndRegistersWatchedPaths(t *testing.T) {
+	store := &fakeConfigStore{paths: []domain.WatchedPath{"/a", "/b"}}
+	registry := &fakeWatchRegistry{}
+	watchPaths := NewWatchPaths(store, registry)
+
+	err := watchPaths.Start()
+
+	if err != nil {
+		t.Fatalf("Start returned error: %v", err)
+	}
+	if !store.loaded {
+		t.Fatal("config store was not loaded")
+	}
+	if len(registry.added) != 2 || registry.added[0] != "/a" || registry.added[1] != "/b" {
+		t.Fatalf("registered paths = %v, want [/a /b]", registry.added)
+	}
+}
+
+func TestWatchPathsStartKeepsRegisteringAfterRegistryError(t *testing.T) {
+	store := &fakeConfigStore{paths: []domain.WatchedPath{"/a", "/b"}}
+	registry := &failingWatchRegistry{err: errors.New("watch failed")}
+	watchPaths := NewWatchPaths(store, registry)
+
+	err := watchPaths.Start()
+
+	if err == nil {
+		t.Fatal("Start returned nil, want error")
 	}
 	if len(registry.added) != 2 || registry.added[0] != "/a" || registry.added[1] != "/b" {
 		t.Fatalf("registered paths = %v, want [/a /b]", registry.added)
