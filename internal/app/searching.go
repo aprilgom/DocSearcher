@@ -19,5 +19,8 @@ func (s Searcher) Search(query string, exact bool, ignoreSpaces bool) (domain.Se
 		Query: query,
 		Mode:  domain.SearchModeFromFlags(exact, ignoreSpaces),
 	}
+	if err := req.Validate(domain.PersonNameSearchPolicy()); err != nil {
+		return domain.SearchResult{}, err
+	}
 	return s.documentIndex.Search(req)
 }

@@ -1,6 +1,10 @@
 package domain
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+	"unicode/utf8"
+)
 
 type DocumentID string
 
@@ -17,6 +21,19 @@ type IndexedDocument struct {
 	Content        string
 	ContentNoSpace string
 	Path           string
+}
+
+type IndexSchema struct {
+	ContentField        string
+	ContentNoSpaceField string
+	PathField           string
+}
+
+type SearchPolicy struct {
+	MinQueryLength      int
+	PartialMatchMinGram int
+	PartialMatchMaxGram int
+	IgnoreWhitespace    bool
 }
 
 type SearchMode int
@@ -65,6 +82,23 @@ func NewIndexedDocument(doc Document) IndexedDocument {
 	}
 }
 
+func DefaultIndexSchema() IndexSchema {
+	return IndexSchema{
+		ContentField:        "content",
+		ContentNoSpaceField: "content_nospace",
+		PathField:           "path",
+	}
+}
+
+func PersonNameSearchPolicy() SearchPolicy {
+	return SearchPolicy{
+		MinQueryLength:      2,
+		PartialMatchMinGram: 2,
+		PartialMatchMaxGram: 5,
+		IgnoreWhitespace:    true,
+	}
+}
+
 func NormalizeNoSpaceContent(content string) string {
 	contentNoSpace := strings.ReplaceAll(content, " ", "")
 	contentNoSpace = strings.ReplaceAll(contentNoSpace, "\n", "")
@@ -81,4 +115,11 @@ func SearchModeFromFlags(exact bool, ignoreSpaces bool) SearchMode {
 		return SearchModeExact
 	}
 	return SearchModeQuery
+}
+
+func (req SearchRequest) Validate(policy SearchPolicy) error {
+	if utf8.RuneCountInString(strings.TrimSpace(req.Query)) < policy.MinQueryLength {
+		return fmt.Errorf("query must be at least %d characters", policy.MinQueryLength)
+	}
+	return nil
 }
