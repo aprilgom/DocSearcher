@@ -5,11 +5,12 @@
     "scored_at": "2026-05-13",
     "git_branch": "main",
     "rubric_version": "codex-v1-100pt",
-    "modules_total": 3,
-    "context_files_total": 1,
-    "large_files_300plus": 2
+    "modules_total": 2,
+    "context_files_total": 2,
+    "large_files_300plus": 0,
+    "scope_note": "goHwpTxt is excluded from readiness scoring because it is a local replace of an external HWP/HWPX parser package."
   },
-  "total": 6,
+  "total": 17,
   "grade": "Codex-Hostile",
   "grade_color": "red",
   "categories": {
@@ -18,30 +19,29 @@
       "score": 0,
       "max": 15,
       "evidence": {
-        "core_modules": 3,
+        "core_modules": 2,
         "covered_modules": 0,
         "coverage_ratio": 0.0,
-        "root_context": null
+        "root_context": "AGENTS.md"
       },
       "sub_scores": {},
       "findings": [
-        "context 미보유 핵심 module 3개: cmd, goHwpTxt, internal",
-        "root AGENTS.md / CODEX.md 부재 — Codex 진입점 브리핑 없음"
+        "context 미보유 핵심 module 2개: cmd, internal"
       ]
     },
     "B": {
       "name": "AGENTS.md / Context Quality",
-      "score": 4,
+      "score": 5,
       "max": 20,
       "evidence": {
-        "context_files": 1,
-        "max_lines": 48,
+        "context_files": 2,
+        "max_lines": 58,
         "min_lines": 48
       },
       "sub_scores": {
         "B1_Conciseness": 4,
         "B2_QuickCommands": 0,
-        "B3_KeyFiles": 0,
+        "B3_KeyFiles": 1,
         "B4_NonObvious": 0,
         "B5_CrossRefs": 0
       },
@@ -57,7 +57,7 @@
       "score": 0,
       "max": 15,
       "evidence": {
-        "modules_total": 3,
+        "modules_total": 2,
         "entry_points": 0,
         "setup_install": 0,
         "verification_commands": 0,
@@ -96,66 +96,63 @@
     },
     "E": {
       "name": "Verification Gates & Testability",
-      "score": 2,
+      "score": 7,
       "max": 20,
       "evidence": {
-        "ref_total": 0,
+        "ref_total": 1,
         "ref_broken": 0,
         "codeowners": false,
         "pr_template": false,
         "ci_workflows": false,
         "husky": false,
         "evals_dir": false,
-        "verify_commands_in_context": false
+        "verify_commands_in_context": true
       },
       "sub_scores": {
-        "E1_RefAccuracy": 2,
+        "E1_RefAccuracy": 5,
         "E2_ReviewEvidence": 0,
-        "E3_TaskValidation": 0,
+        "E3_TaskValidation": 2,
         "E4_AgentWorkflowTests": 0
       },
       "findings": [
         "CODEOWNERS / PR template 없음 — review 및 test evidence 기록 약함",
-        "agent eval / workflow test 디렉터리 없음 — Codex 작업 회귀 catch 없음",
-        "AGENTS.md/context에 local verification command 명시 부족"
+        "agent eval / workflow test 디렉터리 없음 — Codex 작업 회귀 catch 없음"
       ]
     },
     "F": {
       "name": "Safety, Secrets & Change Boundaries",
-      "score": 0,
+      "score": 4,
       "max": 10,
       "evidence": {
-        "context_files_checked": 0,
-        "safety_context_hits": 0,
+        "context_files_checked": 1,
+        "safety_context_hits": 1,
         "env_example": false,
         "gitignore_env": false,
         "generated_boundaries": false
       },
       "sub_scores": {},
       "findings": [
-        "AGENTS.md/context에 secrets, generated files, migrations, destructive command 경계가 부족",
         ".env.example / .env.sample 부재 — 환경변수 계약이 불명확",
         ".gitignore에 .env/secrets 보호 규칙 확인 필요"
       ]
     },
     "G": {
       "name": "Agent Outcome Evidence",
-      "score": 0,
+      "score": 1,
       "max": 5,
       "evidence": {
         "eval_dirs": [],
         "metric_files": [],
-        "telemetry_hint": false
+        "telemetry_hint": true
       },
       "sub_scores": {},
       "findings": [
-        "agent eval / benchmark 디렉터리·결과 파일 부재 — Codex 성능 측정 인프라 없음",
-        "Codex/agent usage telemetry 단서 없음 (task metrics / OpenTelemetry)"
+        "agent eval / benchmark 디렉터리·결과 파일 부재 — Codex 성능 측정 인프라 없음"
       ]
     }
   },
   "insights": [
-    "총점 6/100 · 등급 Codex-Hostile",
+    "총점 17/100 · 등급 Codex-Hostile",
     "가장 낮은 카테고리: A Codex Navigation & Scope Coverage 0/15",
     "가장 낮은 카테고리: C Local Development Workflow Clarity 0/15",
     "Codex safety boundary 약함 — secrets/generated/destructive command 규칙 보강 필요"
@@ -180,13 +177,13 @@
       "priority": 8.0
     },
     {
-      "title": "3개 핵심 module에 AGENTS.md 신설 (cmd, goHwpTxt, internal)",
+      "title": "2개 핵심 module에 AGENTS.md 신설 (cmd, internal)",
       "category": "A",
       "effort": "S",
-      "effort_hours": 1.5,
+      "effort_hours": 1.0,
       "impact": "Codex가 scope와 verification을 바로 파악 → task당 ~3 min 절감",
       "impact_score": 9,
-      "priority": 6.0
+      "priority": 9.0
     },
     {
       "title": "ARCHITECTURE.md 또는 mermaid dependency 다이어그램 추가",
@@ -196,15 +193,6 @@
       "impact": "cross-module ripple 추적 → 변경 영향 분석 시간 절반",
       "impact_score": 7,
       "priority": 2.8
-    },
-    {
-      "title": "god file 2개 분할 (>500 lines): goHwpTxt/pkg/hwp3/hnc2unicode_tables.go (12728), goHwpTxt/pkg/hwp3/hwpv3.go (535)",
-      "category": "B",
-      "effort": "L",
-      "effort_hours": 5.0,
-      "impact": "파일당 ~5K-10K token 절감 + 편집 정확도 ↑",
-      "impact_score": 6,
-      "priority": 1.2
     },
     {
       "title": "evals/ 디렉터리 + 대표 task pass-rate 측정 도입",
@@ -227,14 +215,6 @@
         "context_kind": ""
       },
       {
-        "path": "/Users/aprilgom/DocSearcher/goHwpTxt",
-        "rel": "goHwpTxt",
-        "code_files": 10,
-        "has_context": false,
-        "context_file": null,
-        "context_kind": ""
-      },
-      {
         "path": "/Users/aprilgom/DocSearcher/internal",
         "rel": "internal",
         "code_files": 7,
@@ -243,15 +223,13 @@
         "context_kind": ""
       }
     ],
-    "large_files": [
+    "excluded_modules": [
       {
-        "path": "goHwpTxt/pkg/hwp3/hnc2unicode_tables.go",
-        "lines": 12728
-      },
-      {
-        "path": "goHwpTxt/pkg/hwp3/hwpv3.go",
-        "lines": 535
+        "path": "/Users/aprilgom/DocSearcher/goHwpTxt",
+        "rel": "goHwpTxt",
+        "reason": "local replace of external HWP/HWPX parser package"
       }
-    ]
+    ],
+    "large_files": []
   }
 }
