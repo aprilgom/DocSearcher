@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"hwp-searcher/internal/domain"
 
 	"github.com/blevesearch/bleve/v2"
@@ -11,7 +12,7 @@ import (
 	"github.com/blevesearch/bleve/v2/mapping"
 )
 
-func buildIndexMapping() mapping.IndexMapping {
+func buildIndexMapping() (mapping.IndexMapping, error) {
 	policy := domain.PersonNameSearchPolicy()
 	schema := domain.DefaultIndexSchema()
 	indexMapping := bleve.NewIndexMapping()
@@ -22,14 +23,14 @@ func buildIndexMapping() mapping.IndexMapping {
 		"max":  float64(policy.PartialMatchMaxGram),
 	})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("add ngram token filter: %w", err)
 	}
 
 	err = indexMapping.AddCustomTokenFilter("lowercase", map[string]interface{}{
 		"type": lowercase.Name,
 	})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("add lowercase token filter: %w", err)
 	}
 
 	err = indexMapping.AddCustomAnalyzer("ngram_analyzer", map[string]interface{}{
@@ -41,7 +42,7 @@ func buildIndexMapping() mapping.IndexMapping {
 		},
 	})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("add ngram analyzer: %w", err)
 	}
 
 	docMapping := bleve.NewDocumentMapping()
@@ -60,5 +61,5 @@ func buildIndexMapping() mapping.IndexMapping {
 
 	indexMapping.DefaultMapping = docMapping
 
-	return indexMapping
+	return indexMapping, nil
 }

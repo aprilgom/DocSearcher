@@ -67,7 +67,11 @@ func recreateIndex(indexPath string) (bleve.Index, error) {
 }
 
 func createIndex(indexPath string) (bleve.Index, error) {
-	return bleve.New(indexPath, buildIndexMapping())
+	indexMapping, err := buildIndexMapping()
+	if err != nil {
+		return nil, err
+	}
+	return bleve.New(indexPath, indexMapping)
 }
 
 func (e *Engine) indexDocument(id string, content string, contentNoSpace string) error {

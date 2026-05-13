@@ -9,7 +9,10 @@ import (
 )
 
 func TestBuildIndexMappingUsesDomainSearchPolicy(t *testing.T) {
-	mapping := buildIndexMapping()
+	mapping, err := buildIndexMapping()
+	if err != nil {
+		t.Fatalf("buildIndexMapping: %v", err)
+	}
 	raw, err := json.Marshal(mapping)
 	if err != nil {
 		t.Fatalf("Marshal mapping: %v", err)
@@ -31,7 +34,10 @@ func TestBuildIndexMappingUsesDomainSearchPolicy(t *testing.T) {
 }
 
 func TestBuildIndexMappingUsesDomainIndexSchemaFields(t *testing.T) {
-	mapping := buildIndexMapping()
+	mapping, err := buildIndexMapping()
+	if err != nil {
+		t.Fatalf("buildIndexMapping: %v", err)
+	}
 	raw, err := json.Marshal(mapping)
 	if err != nil {
 		t.Fatalf("Marshal mapping: %v", err)
