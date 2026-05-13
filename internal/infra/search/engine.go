@@ -35,37 +35,44 @@ func (e *Engine) Init(indexPath string) error {
 	defer e.mu.Unlock()
 
 	fmt.Printf("Initializing index at %s\n", indexPath)
-	e.indexPath = indexPath
-
-	var err error
-	if _, statErr := os.Stat(indexPath); os.IsNotExist(statErr) {
-		fmt.Println("Index does not exist, creating new...")
-		indexMapping := buildIndexMapping()
-		e.index, err = bleve.New(indexPath, indexMapping)
-	} else {
-		fmt.Println("Index exists, opening...")
-		e.index, err = bleve.Open(indexPath)
-		// Auto-recovery: If open fails, try to recreate
-		if err != nil {
-			fmt.Printf("Failed to open index: %v. Attempting to recreate...\n", err)
-			removeErr := os.RemoveAll(indexPath)
-			if removeErr != nil {
-				return fmt.Errorf("failed to remove corrupted index: %w", removeErr)
-			}
-			indexMapping := buildIndexMapping()
-			e.index, err = bleve.New(indexPath, indexMapping)
-		}
-	}
-
+	index, err := openOrCreateIndex(indexPath)
 	if err != nil {
 		return fmt.Errorf("failed to open/create index: %w", err)
 	}
-
-	if e.index == nil {
+	if index == nil {
 		return fmt.Errorf("bleve returned nil index with no error")
 	}
 
+	e.indexPath = indexPath
+	e.index = index
 	return nil
+}
+
+func openOrCreateIndex(indexPath string) (bleve.Index, error) {
+	if _, statErr := os.Stat(indexPath); os.IsNotExist(statErr) {
+		fmt.Println("Index does not exist, creating new...")
+		return createIndex(indexPath)
+	}
+
+	fmt.Println("Index exists, opening...")
+	index, err := bleve.Open(indexPath)
+	if err == nil {
+		return index, nil
+	}
+
+	fmt.Printf("Failed to open index: %v. Attempting to recreate...\n", err)
+	return recreateIndex(indexPath)
+}
+
+func recreateIndex(indexPath string) (bleve.Index, error) {
+	if err := os.RemoveAll(indexPath); err != nil {
+		return nil, fmt.Errorf("failed to remove corrupted index: %w", err)
+	}
+	return createIndex(indexPath)
+}
+
+func createIndex(indexPath string) (bleve.Index, error) {
+	return bleve.New(indexPath, buildIndexMapping())
 }
 
 func buildIndexMapping() mapping.IndexMapping {
@@ -260,25 +267,13 @@ func (e *Engine) ResetIndex(indexPath string) error {
 	defer e.mu.Unlock()
 
 	if e.index != nil {
-		e.index.Close()
+		if err := e.index.Close(); err != nil {
+			return err
+		}
 		e.index = nil
 	}
-	err := os.RemoveAll(indexPath)
-	if err != nil {
-		return err
-	}
 
-	// Re-init (Init locks, but we are already locked, so we need to call internal init or unlock)
-	// Since Init is exported and locks, we should extract the logic or just unlock before calling Init.
-	// But Init checks file existence which we just deleted.
-
-	// Let's just inline the Init logic here to avoid deadlock or recursive lock issues,
-	// OR unlock and call Init. Unlocking is safer if Init does complex things, but here it's fine.
-	// However, if we unlock, another thread might jump in.
-	// Better to extract internal init logic.
-
-	indexMapping := buildIndexMapping()
-	newIndex, err := bleve.New(indexPath, indexMapping)
+	newIndex, err := recreateIndex(indexPath)
 	if err != nil {
 		return err
 	}
