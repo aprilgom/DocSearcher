@@ -17,20 +17,23 @@ code for Codex-readiness ownership.
 ## Runtime Flow
 
 1. `cmd/app/main.go` calls `search.Init("hwp-index.bleve")`.
-2. `cmd/app/main.go` constructs small `internal/app` use cases:
-   `Indexer`, `Searcher`, `WatchPaths`, and `Stats`.
-3. `watcher.Start(watcher.Registry{StartIndexing: indexer.Start})` loads
+2. `cmd/app/main.go` constructs concrete adapters and small `internal/app`
+   use cases: `Indexer`, `Searcher`, `WatchPaths`, and `Stats`.
+3. `cmd/app/main.go` wires `indexer.Runner`, `watcher.Registry`, and
+   `server.Handlers`; internal packages receive dependencies instead of
+   constructing parser/search/config implementations themselves.
+4. `watcher.Start(watcher.Registry{StartIndexing: indexRunner.Start})` loads
    `config.json`, recursively watches configured folders, and triggers initial
    indexing for each watched path through the injected registry callback.
-4. `server.Start("8080")` registers HTML/HTMX endpoints:
+5. `server.Start("8080", handlers)` registers HTML/HTMX endpoints:
    `/`, `/api/search`, `/api/config`, `/api/watch`, `/api/stats`, and
    `/api/index/reset`.
-5. Adding a watched path through `/api/watch` calls `app.WatchPaths`, which
+6. Adding a watched path through `/api/watch` calls `app.WatchPaths`, which
    persists `config.json`, starts recursive watching, and starts indexing.
-6. `indexer.Start` walks files and sends `.hwp`, `.hwpx`, and `.pdf` paths to
-   four worker goroutines. `indexer.IndexFile` delegates extraction and indexing
-   to an injected `app.Indexer`.
-7. `app.Searcher` converts UI flags into `domain.SearchRequest`; `search.Engine`
+7. `indexer.Runner.Start` walks files and sends `.hwp`, `.hwpx`, and `.pdf`
+   paths to four worker goroutines. `indexer.Runner.IndexFile` delegates
+   extraction and indexing to an injected file indexer.
+8. `app.Searcher` converts UI flags into `domain.SearchRequest`; `search.Engine`
    runs exact, no-space, or query-string searches and returns highlighted
    results to the web UI.
 
@@ -43,7 +46,7 @@ code for Codex-readiness ownership.
   `watcher.Registry.StartIndexing`.
 - `internal/indexer`: owns file walking, worker concurrency, target document
   filtering, and indexing status. Text extraction and index writes are delegated
-  to `app.Indexer`.
+  to an injected `FileIndexer`.
 - `internal/app`: owns small use-case types and consumer-side ports:
   `Indexer`, `Searcher`, `WatchPaths`, and `Stats`.
 - `internal/domain`: owns core document/search/watch-path value types and
@@ -56,7 +59,7 @@ code for Codex-readiness ownership.
   process-global Bleve index, mapping, indexing, querying, counting, deletion,
   and reset.
 - `internal/server`: owns HTTP routes, template rendering, and HTMX fragments.
-  Search/config/reset workflows are delegated to injected `app` use cases.
+  Search/config/reset workflows are delegated to injected interfaces.
 - `web/templates`: owns the browser UI consumed by `internal/server`.
 - `goHwpTxt`: local replacement for an external HWP/HWPX parser package. Prefer
   treating changes here as dependency updates unless the task explicitly targets
@@ -77,11 +80,7 @@ flowchart TD
     client[cmd/client] --> webview[go-webview2]
     client --> osopen[Windows shell openFile bridge]
 
-    server --> appuse
-    server -. default wiring .-> config[internal/config]
-    server --> indexer[internal/indexer]
-    server --> search
-    server --> watcher
+    server --> domain
     server --> templates[web/templates]
 
     watcher --> config
@@ -90,10 +89,7 @@ flowchart TD
 
     appuse --> domain
 
-    indexer --> appuse
     indexer --> domain
-    indexer --> parser[internal/parser]
-    indexer --> search
 
     parser --> gohwptxt[goHwpTxt local external package]
     parser --> pdf[ledongthuc/pdf]
@@ -126,7 +122,7 @@ flowchart TD
 - Parser behavior changes should start in `internal/parser` unless the task
   explicitly requires changing the local `goHwpTxt` dependency.
 - Indexing and watcher changes are concurrency-sensitive. Check
-  `app.Indexer`, `app.WatchPaths`, `indexer.IsIndexing`, worker lifecycle, and
+  `app.Indexer`, `app.WatchPaths`, `indexer.Runner`, worker lifecycle, and
   fsnotify event handling before changing startup or reset flows.
 - For Go code changes, run `go test ./...`; on macOS the Windows WebView client
   may not build, so use `go test $(go list ./... | grep -v '/cmd/client$')`

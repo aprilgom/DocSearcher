@@ -48,5 +48,5 @@ Documents written to Bleve by `internal/search.IndexDocument` have these fields:
 | Field | Type | Source | Notes |
 | --- | --- | --- | --- |
 | `content` | string | `internal/parser.Parse` | Extracted document text, analyzed with the custom n-gram analyzer. |
-| `content_nospace` | string | `internal/indexer.IndexFile` | `content` with spaces, tabs, CR, and LF removed for ignore-space search. |
+| `content_nospace` | string | `domain.NewIndexedDocument` | `content` with spaces, tabs, CR, and LF removed for ignore-space search. |
 | `path` | string | indexed file path | Stored path used by the UI to display and open the source file. |
