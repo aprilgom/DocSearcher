@@ -2,10 +2,8 @@ package indexer
 
 import (
 	"hwp-searcher/internal/domain"
+	"hwp-searcher/internal/scanner"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -57,14 +55,8 @@ func (r Runner) Start(root string) {
 			go r.worker(jobs, &wg)
 		}
 
-		// Walk files
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() && IsSupportedDocumentFile(path) {
-				jobs <- path
-			}
+		err := scanner.Walk(root, func(path string) error {
+			jobs <- path
 			return nil
 		})
 		if err != nil {
@@ -85,13 +77,7 @@ func (r Runner) worker(jobs <-chan string, wg *sync.WaitGroup) {
 }
 
 func IsSupportedDocumentFile(path string) bool {
-	name := filepath.Base(path)
-	if strings.Contains(name, "~$") || strings.HasSuffix(strings.ToLower(name), ".tmp") {
-		return false
-	}
-
-	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".hwp" || ext == ".hwpx" || ext == ".pdf"
+	return scanner.IsSupportedDocumentFile(path)
 }
 
 func NormalizeNoSpaceContent(content string) string {
