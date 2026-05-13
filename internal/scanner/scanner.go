@@ -1,9 +1,9 @@
 package scanner
 
 import (
+	"hwp-searcher/internal/domain"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func Walk(root string, visit func(path string) error) error {
@@ -11,19 +11,9 @@ func Walk(root string, visit func(path string) error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && IsSupportedDocumentFile(path) {
+		if !info.IsDir() && domain.IsSupportedDocumentPath(path) {
 			return visit(path)
 		}
 		return nil
 	})
-}
-
-func IsSupportedDocumentFile(path string) bool {
-	name := filepath.Base(path)
-	if strings.Contains(name, "~$") || strings.HasSuffix(strings.ToLower(name), ".tmp") {
-		return false
-	}
-
-	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".hwp" || ext == ".hwpx" || ext == ".pdf"
 }

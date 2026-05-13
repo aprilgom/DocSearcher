@@ -3,7 +3,6 @@ package watcher
 import (
 	"hwp-searcher/internal/config"
 	"hwp-searcher/internal/domain"
-	"hwp-searcher/internal/scanner"
 	"log"
 	"os"
 	"path/filepath"
@@ -157,5 +156,5 @@ func handleEvent(event fsnotify.Event) {
 }
 
 func isSupportedDocumentEvent(path string) bool {
-	return scanner.IsSupportedDocumentFile(path)
+	return domain.IsSupportedDocumentPath(path)
 }

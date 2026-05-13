@@ -31,9 +31,9 @@ code for Codex-readiness ownership.
    `/api/index/reset`.
 6. Adding a watched path through `/api/watch` calls `app.WatchPaths`, which
    persists `config.json`, starts recursive watching, and starts indexing.
-7. `app.IndexRunner.Start` uses `internal/scanner` to walk `.hwp`, `.hwpx`,
-   and `.pdf` paths, then sends them to `internal/worker` for parallel
-   processing. Each path is processed through `app.Indexer.IndexFile`.
+7. `app.IndexRunner.Start` uses `internal/scanner` to walk paths accepted by
+   `domain.IsSupportedDocumentPath`, then sends them to `internal/worker` for
+   parallel processing. Each path is processed through `app.Indexer.IndexFile`.
 8. `app.Searcher` converts UI flags into `domain.SearchRequest`; `search.Engine`
    runs exact, no-space, or query-string searches and returns highlighted
    results to the web UI.
@@ -47,10 +47,10 @@ code for Codex-readiness ownership.
   `watcher.Registry.StartIndexing`.
 - `internal/app`: owns small use-case types and consumer-side ports:
   `Indexer`, `IndexRunner`, `Searcher`, `WatchPaths`, and `Stats`.
-- `internal/domain`: owns core document/search/watch-path value types and
-  normalization rules shared by use cases and adapters.
-- `internal/scanner`: owns supported document file walking and filtering for
-  `.hwp`, `.hwpx`, and `.pdf` paths while excluding temporary files.
+- `internal/domain`: owns core document/search/watch-path value types,
+  supported document path policy, and normalization rules shared by use cases
+  and adapters.
+- `internal/scanner`: owns walking supported document file paths.
 - `internal/worker`: owns worker pool execution for path processors.
 - `internal/parser`: owns file-extension dispatch and text extraction. It calls
   `goHwpTxt.ExtractText` for `.hwp`/`.hwpx` and `github.com/ledongthuc/pdf` for
@@ -87,7 +87,6 @@ flowchart TD
 
     watcher --> config
     watcher --> domain
-    watcher --> scanner
     watcher --> fsnotify[fsnotify]
 
     appuse --> domain
