@@ -10,7 +10,9 @@ import (
 )
 
 type Engine struct {
-	store *indexStore
+	store  *indexStore
+	codec  documentCodec
+	mapper hitMapper
 }
 
 func NewEngine(indexPath string) (*Engine, error) {
@@ -23,7 +25,12 @@ func NewEngine(indexPath string) (*Engine, error) {
 	if err := store.open(); err != nil {
 		return nil, err
 	}
-	return &Engine{store: store}, nil
+	schema := domain.DefaultIndexSchema()
+	return &Engine{
+		store:  store,
+		codec:  newDocumentCodec(schema),
+		mapper: newHitMapper(schema),
+	}, nil
 }
 
 func normalizeIndexPath(indexPath string) (string, error) {
@@ -48,47 +55,21 @@ func normalizeIndexPath(indexPath string) (string, error) {
 	return cleanPath, nil
 }
 
-func (e *Engine) indexDocument(id string, content string, contentNoSpace string) error {
-	schema := domain.DefaultIndexSchema()
-	return e.store.indexDocument(id, map[string]string{
-		schema.ContentField:        content,
-		schema.ContentNoSpaceField: contentNoSpace,
-		schema.PathField:           id,
-	})
+func (e *Engine) indexDocument(doc domain.IndexedDocument) error {
+	return e.store.indexDocument(string(doc.ID), e.codec.fieldMap(doc))
 }
 
 func (e *Engine) IndexDocument(doc domain.IndexedDocument) error {
-	return e.indexDocument(string(doc.ID), doc.Content, doc.ContentNoSpace)
+	return e.indexDocument(doc)
 }
 
 func (e *Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
-	schema := domain.DefaultIndexSchema()
-
 	result, err := e.search(req)
 	if err != nil {
 		return domain.SearchResult{}, err
 	}
 
-	hits := make([]domain.SearchHit, 0, len(result.Hits))
-	for _, hit := range result.Hits {
-		fragment := ""
-		if len(hit.Fragments[schema.ContentField]) > 0 {
-			fragment = hit.Fragments[schema.ContentField][0]
-		}
-		if req.Mode == domain.SearchModeIgnoreSpaces && len(hit.Fragments[schema.ContentNoSpaceField]) > 0 {
-			fragment = hit.Fragments[schema.ContentNoSpaceField][0]
-		}
-
-		hits = append(hits, domain.SearchHit{
-			ID:       domain.DocumentID(hit.ID),
-			Fragment: fragment,
-		})
-	}
-
-	return domain.SearchResult{
-		Total: result.Total,
-		Hits:  hits,
-	}, nil
+	return e.mapper.searchResult(result, req), nil
 }
 
 func (e *Engine) search(req domain.SearchRequest) (*bleve.SearchResult, error) {

@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 )
 
 func TestBuildIndexMappingUsesDomainSearchPolicy(t *testing.T) {
@@ -216,6 +219,36 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 				t.Fatalf("hits = %v, want IDs %v", hitIDs(got.Hits), tt.wantIDs)
 			}
 		})
+	}
+}
+
+func TestHitMapperPrefersNoSpaceFragmentForIgnoreSpacesSearch(t *testing.T) {
+	schema := domain.DefaultIndexSchema()
+	mapper := newHitMapper(schema)
+
+	result := &bleve.SearchResult{
+		Total: 1,
+		Hits: search.DocumentMatchCollection{
+			{
+				ID: "spaced.hwp",
+				Fragments: search.FieldFragmentMap{
+					schema.ContentField:        []string{"홍 길 동 보고서"},
+					schema.ContentNoSpaceField: []string{"홍길동 보고서"},
+				},
+			},
+		},
+	}
+
+	got := mapper.searchResult(result, domain.SearchRequest{
+		Query: "홍길동",
+		Mode:  domain.SearchModeIgnoreSpaces,
+	})
+
+	if len(got.Hits) != 1 {
+		t.Fatalf("len(Hits) = %d, want 1", len(got.Hits))
+	}
+	if got.Hits[0].Fragment != "홍길동 보고서" {
+		t.Fatalf("Fragment = %q, want no-space fragment", got.Hits[0].Fragment)
 	}
 }
 
