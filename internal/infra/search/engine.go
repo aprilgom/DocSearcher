@@ -157,11 +157,9 @@ func (e *Engine) IndexDocument(doc domain.IndexedDocument) error {
 }
 
 func (e *Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
-	exact := req.Mode == domain.SearchModeExact
-	ignoreSpaces := req.Mode == domain.SearchModeIgnoreSpaces
 	schema := domain.DefaultIndexSchema()
 
-	result, err := e.search(req.Query, exact, ignoreSpaces)
+	result, err := e.search(req)
 	if err != nil {
 		return domain.SearchResult{}, err
 	}
@@ -172,7 +170,7 @@ func (e *Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
 		if len(hit.Fragments[schema.ContentField]) > 0 {
 			fragment = hit.Fragments[schema.ContentField][0]
 		}
-		if ignoreSpaces && len(hit.Fragments[schema.ContentNoSpaceField]) > 0 {
+		if req.Mode == domain.SearchModeIgnoreSpaces && len(hit.Fragments[schema.ContentNoSpaceField]) > 0 {
 			fragment = hit.Fragments[schema.ContentNoSpaceField][0]
 		}
 
@@ -188,17 +186,13 @@ func (e *Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
 	}, nil
 }
 
-func (e *Engine) search(queryStr string, exactMatch bool, ignoreSpaces bool) (*bleve.SearchResult, error) {
+func (e *Engine) search(req domain.SearchRequest) (*bleve.SearchResult, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	if e.index == nil {
 		return nil, fmt.Errorf("index is closed")
 	}
 
-	req := domain.SearchRequest{
-		Query: queryStr,
-		Mode:  domain.SearchModeFromFlags(exactMatch, ignoreSpaces),
-	}
 	return e.index.Search(buildSearchRequest(req, domain.DefaultIndexSchema()))
 }
 
