@@ -1,34 +1,12 @@
 package app
 
-import (
-	"hwp-searcher/internal/domain"
-)
-
-type TextExtractor interface {
-	ExtractText(path string) (string, error)
-}
+import "hwp-searcher/internal/domain"
 
 type DocumentIndex interface {
-	IndexDocument(doc domain.IndexedDocument) error
-	DeleteDocument(id domain.DocumentID) error
-	Search(req domain.SearchRequest) (domain.SearchResult, error)
-	Count() (uint64, error)
-	Reset() error
-}
-
-type ConfigStore interface {
-	WatchedPaths() []domain.WatchedPath
-	AddPath(path domain.WatchedPath) error
-	RemovePath(path domain.WatchedPath) error
-}
-
-type WatchRegistry interface {
-	AddPath(path domain.WatchedPath) error
-	RemovePath(path domain.WatchedPath) error
-}
-
-type IndexingStatus interface {
-	IsIndexing() bool
+	DocumentWriter
+	DocumentSearcher
+	DocumentCounter
+	IndexResetter
 }
 
 type Dependencies struct {
@@ -40,86 +18,51 @@ type Dependencies struct {
 }
 
 type Service struct {
-	textExtractor  TextExtractor
-	documentIndex  DocumentIndex
-	configStore    ConfigStore
-	watchRegistry  WatchRegistry
-	indexingStatus IndexingStatus
+	indexer    Indexer
+	searcher   Searcher
+	watchPaths WatchPaths
+	stats      Stats
+	indexReset IndexResetter
 }
 
 func NewService(deps Dependencies) *Service {
 	return &Service{
-		textExtractor:  deps.TextExtractor,
-		documentIndex:  deps.DocumentIndex,
-		configStore:    deps.ConfigStore,
-		watchRegistry:  deps.WatchRegistry,
-		indexingStatus: deps.IndexingStatus,
+		indexer:    NewIndexer(deps.TextExtractor, deps.DocumentIndex),
+		searcher:   NewSearcher(deps.DocumentIndex),
+		watchPaths: NewWatchPaths(deps.ConfigStore, deps.WatchRegistry),
+		stats:      NewStats(deps.DocumentIndex, deps.ConfigStore, deps.IndexingStatus),
+		indexReset: deps.DocumentIndex,
 	}
 }
 
 func (s *Service) IndexFile(path string) error {
-	content, err := s.textExtractor.ExtractText(path)
-	if err != nil {
-		return err
-	}
-
-	doc := domain.NewDocument(path, content)
-	return s.documentIndex.IndexDocument(domain.NewIndexedDocument(doc))
+	return s.indexer.IndexFile(path)
 }
 
 func (s *Service) RemoveFile(path string) error {
-	return s.documentIndex.DeleteDocument(domain.DocumentID(path))
+	return s.indexer.RemoveFile(path)
 }
 
 func (s *Service) Search(query string, exact bool, ignoreSpaces bool) (domain.SearchResult, error) {
-	req := domain.SearchRequest{
-		Query: query,
-		Mode:  domain.SearchModeFromFlags(exact, ignoreSpaces),
-	}
-	return s.documentIndex.Search(req)
+	return s.searcher.Search(query, exact, ignoreSpaces)
 }
 
 func (s *Service) WatchedPaths() []domain.WatchedPath {
-	return s.configStore.WatchedPaths()
+	return s.watchPaths.List()
 }
 
 func (s *Service) AddWatchedPath(path string) error {
-	watchedPath := domain.WatchedPath(path)
-	if err := s.configStore.AddPath(watchedPath); err != nil {
-		return err
-	}
-	return s.watchRegistry.AddPath(watchedPath)
+	return s.watchPaths.Add(path)
 }
 
 func (s *Service) RemoveWatchedPath(path string) error {
-	watchedPath := domain.WatchedPath(path)
-	if err := s.configStore.RemovePath(watchedPath); err != nil {
-		return err
-	}
-	return s.watchRegistry.RemovePath(watchedPath)
+	return s.watchPaths.Remove(path)
 }
 
 func (s *Service) ResetIndex() error {
-	if err := s.documentIndex.Reset(); err != nil {
-		return err
-	}
-	for _, path := range s.configStore.WatchedPaths() {
-		if err := s.watchRegistry.AddPath(path); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.watchPaths.ResetIndex(s.indexReset)
 }
 
 func (s *Service) Stats() (domain.Stats, error) {
-	count, err := s.documentIndex.Count()
-	if err != nil {
-		return domain.Stats{}, err
-	}
-
-	return domain.Stats{
-		DocumentCount:    count,
-		WatchedPathCount: len(s.configStore.WatchedPaths()),
-		Indexing:         s.indexingStatus.IsIndexing(),
-	}, nil
+	return s.stats.Current()
 }
