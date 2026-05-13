@@ -8,11 +8,6 @@ import (
 	"sync"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
-	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
-	"github.com/blevesearch/bleve/v2/analysis/token/ngram"
-	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
-	"github.com/blevesearch/bleve/v2/mapping"
 )
 
 type Engine struct {
@@ -75,66 +70,6 @@ func createIndex(indexPath string) (bleve.Index, error) {
 	return bleve.New(indexPath, buildIndexMapping())
 }
 
-func buildIndexMapping() mapping.IndexMapping {
-	policy := domain.PersonNameSearchPolicy()
-	schema := domain.DefaultIndexSchema()
-	indexMapping := bleve.NewIndexMapping()
-
-	// 1. Define N-gram Token Filter
-	err := indexMapping.AddCustomTokenFilter("ngram_filter", map[string]interface{}{
-		"type": ngram.Name,
-		"min":  float64(policy.PartialMatchMinGram),
-		"max":  float64(policy.PartialMatchMaxGram),
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// 2. Define Lowercase Token Filter (alias)
-	// We explicitly define it to ensure it's available as "lowercase"
-	err = indexMapping.AddCustomTokenFilter("lowercase", map[string]interface{}{
-		"type": lowercase.Name,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// 3. Define Custom Analyzer (Unicode Tokenizer + N-gram Filter + Lowercase)
-	err = indexMapping.AddCustomAnalyzer("ngram_analyzer", map[string]interface{}{
-		"type":      custom.Name,
-		"tokenizer": unicode.Name,
-		"token_filters": []string{
-			"ngram_filter",
-			"lowercase",
-		},
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// 4. Define Document Mapping
-	docMapping := bleve.NewDocumentMapping()
-
-	// Field: content (Uses N-gram Analyzer)
-	contentFieldMapping := bleve.NewTextFieldMapping()
-	contentFieldMapping.Analyzer = "ngram_analyzer"
-	docMapping.AddFieldMappingsAt(schema.ContentField, contentFieldMapping)
-
-	// Field: content_nospace (Uses N-gram Analyzer - for person-name search without spaces)
-	nospaceFieldMapping := bleve.NewTextFieldMapping()
-	nospaceFieldMapping.Analyzer = "ngram_analyzer"
-	docMapping.AddFieldMappingsAt(schema.ContentNoSpaceField, nospaceFieldMapping)
-
-	// Field: path (Stored, not analyzed for full text search usually, but good to have)
-	pathFieldMapping := bleve.NewTextFieldMapping()
-	pathFieldMapping.Store = true
-	docMapping.AddFieldMappingsAt(schema.PathField, pathFieldMapping)
-
-	indexMapping.DefaultMapping = docMapping
-
-	return indexMapping
-}
-
 func (e *Engine) indexDocument(id string, content string, contentNoSpace string) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -194,28 +129,6 @@ func (e *Engine) search(req domain.SearchRequest) (*bleve.SearchResult, error) {
 	}
 
 	return e.index.Search(buildSearchRequest(req, domain.DefaultIndexSchema()))
-}
-
-func buildSearchRequest(req domain.SearchRequest, schema domain.IndexSchema) *bleve.SearchRequest {
-	var searchRequest *bleve.SearchRequest
-
-	switch req.Mode {
-	case domain.SearchModeIgnoreSpaces:
-		query := bleve.NewMatchQuery(req.Query)
-		query.FieldVal = schema.ContentNoSpaceField
-		searchRequest = bleve.NewSearchRequest(query)
-	case domain.SearchModeExact:
-		query := bleve.NewMatchPhraseQuery(req.Query)
-		query.FieldVal = schema.ContentField
-		searchRequest = bleve.NewSearchRequest(query)
-	default:
-		query := bleve.NewQueryStringQuery(req.Query)
-		searchRequest = bleve.NewSearchRequest(query)
-	}
-
-	searchRequest.Fields = []string{schema.PathField, schema.ContentField}
-	searchRequest.Highlight = bleve.NewHighlight()
-	return searchRequest
 }
 
 func (e *Engine) Count() (uint64, error) {
