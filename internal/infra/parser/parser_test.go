@@ -9,8 +9,8 @@ import (
 
 func TestParseHWP(t *testing.T) {
 	// Path to the sample HWP file in goHwpTxt/testdata
-	// We are running tests from internal/parser, so we need to go up to root then to goHwpTxt
-	samplePath := filepath.Join("..", "..", "goHwpTxt", "testdata", "2019가단3702.hwp")
+	// We are running tests from internal/infra/parser, so we need to go up to root then to goHwpTxt
+	samplePath := filepath.Join("..", "..", "..", "goHwpTxt", "testdata", "2019가단3702.hwp")
 	absPath, err := filepath.Abs(samplePath)
 	if err != nil {
 		t.Fatalf("Failed to get absolute path: %v", err)

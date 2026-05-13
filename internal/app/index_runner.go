@@ -1,8 +1,8 @@
 package app
 
 import (
-	"hwp-searcher/internal/scanner"
-	"hwp-searcher/internal/worker"
+	"hwp-searcher/internal/infra/scanner"
+	"hwp-searcher/internal/infra/worker"
 	"log"
 	"sync/atomic"
 )

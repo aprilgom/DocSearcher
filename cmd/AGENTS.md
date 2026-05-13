@@ -26,13 +26,13 @@ go test $(go list ./... | grep -v '/cmd/client$')
 - `go test ./...` can fail on macOS when it reaches `cmd/client`; use the macOS-safe package subset unless the client itself changed.
 
 ## Dependencies
-- See [../ARCHITECTURE.md](../ARCHITECTURE.md) for how `cmd/app` wires `internal/search`, `internal/watcher`, and `internal/server`.
+- See [../ARCHITECTURE.md](../ARCHITECTURE.md) for how `cmd/app` wires `internal/infra/search`, `internal/infra/watcher`, and `internal/server`.
 - See [../internal/AGENTS.md](../internal/AGENTS.md) before moving behavior out of entrypoints.
 
 ## Safety And Change Boundaries
 - Do not commit runtime output from the server, especially `hwp-index.bleve/` or local `config.json`.
 - Avoid adding business logic, parsing, indexing, or search behavior to `cmd`; keep entrypoints thin.
-- Do not change the default port, index path, or client URL behavior without checking the matching `internal/server`, `internal/search`, and packaging assumptions.
+- Do not change the default port, index path, or client URL behavior without checking the matching `internal/server`, `internal/infra/search`, and packaging assumptions.
 
 ## Done Criteria
 - For `cmd/app` changes, run `go test ./internal/...` and, when practical, `go run ./cmd/app` to confirm startup.

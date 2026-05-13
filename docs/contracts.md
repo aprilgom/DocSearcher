@@ -22,7 +22,7 @@ HTML fragments rather than JSON DTOs.
 
 | Name | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `q` | string | empty | User search text passed to `internal/search.Search`. |
+| `q` | string | empty | User search text passed to `internal/infra/search.Search`. |
 | `exact` | boolean string | `false` | When `true`, uses phrase matching against `content`. |
 | `nospace` | boolean string | `false` | When `true`, searches `content_nospace`; this takes precedence over `exact`. |
 
@@ -39,14 +39,14 @@ stored in ignored `config.json`.
 
 | Field | Type | Owner | Notes |
 | --- | --- | --- | --- |
-| `watched_paths` | `string[]` | `internal/config.Config.WatchedPaths` | Absolute or user-provided directory paths watched recursively by `internal/watcher`. |
+| `watched_paths` | `string[]` | `internal/infra/config.Config.WatchedPaths` | Absolute or user-provided directory paths watched recursively by `internal/infra/watcher`. |
 
 ## Search Index Document
 
-Documents written to Bleve by `internal/search.IndexDocument` have these fields:
+Documents written to Bleve by `internal/infra/search.IndexDocument` have these fields:
 
 | Field | Type | Source | Notes |
 | --- | --- | --- | --- |
-| `content` | string | `internal/parser.Parse` | Extracted document text, analyzed with the custom n-gram analyzer. |
+| `content` | string | `internal/infra/parser.Parse` | Extracted document text, analyzed with the custom n-gram analyzer. |
 | `content_nospace` | string | `domain.NewIndexedDocument` | `content` with spaces, tabs, CR, and LF removed for ignore-space search. |
 | `path` | string | indexed file path | Stored path used by the UI to display and open the source file. |

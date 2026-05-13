@@ -5,22 +5,22 @@
 - Keep package APIs small and prefer package-local helpers unless behavior must be shared across packages.
 
 ## Key Files
-- `internal/config/config.go` - configuration loading and persisted settings.
+- `internal/infra/config/config.go` - configuration loading and persisted settings.
 - `internal/app/indexing.go` - single-file indexing and deletion use case.
 - `internal/app/index_runner.go` - full-folder indexing run orchestration.
 - `internal/domain/document_file.go` - supported document path policy.
-- `internal/scanner/scanner.go` - supported document file walking.
-- `internal/worker/worker.go` - worker pool execution.
-- `internal/parser/parser.go` - HWP/HWPX/PDF text extraction dispatch.
-- `internal/search/engine.go` - Bleve index setup, indexing, querying, and close behavior.
+- `internal/infra/scanner/scanner.go` - supported document file walking.
+- `internal/infra/worker/worker.go` - worker pool execution.
+- `internal/infra/parser/parser.go` - HWP/HWPX/PDF text extraction dispatch.
+- `internal/infra/search/engine.go` - Bleve index setup, indexing, querying, and close behavior.
 - `internal/server/server.go` - HTTP server and web UI handlers.
-- `internal/watcher/watcher.go` - filesystem watching and re-indexing trigger.
+- `internal/infra/watcher/watcher.go` - filesystem watching and re-indexing trigger.
 
 ## Commands
 ```bash
 go mod download
 go test ./internal/...
-go test ./internal/parser
+go test ./internal/infra/parser
 go run ./cmd/app
 ```
 - Full repo test when platform allows it: `go test ./...`
@@ -36,7 +36,7 @@ go run ./cmd/app
 - See [../ARCHITECTURE.md](../ARCHITECTURE.md) for cross-module data flow.
 - `internal/server` should depend on injected interfaces and `internal/domain`, not concrete config/search/scanner/worker/watcher adapters.
 - `internal/app` owns use-case orchestration and should depend on consumer-side ports plus small infrastructure helpers such as `scanner` and `worker`.
-- `internal/scanner` and `internal/worker` should remain independent of parser/search/app business behavior.
+- `internal/infra/scanner` and `internal/infra/worker` should remain independent of parser/search/app business behavior.
 - Parser behavior changes can affect indexed content and search results through the `cmd/app` wiring path.
 
 ## Safety And Change Boundaries

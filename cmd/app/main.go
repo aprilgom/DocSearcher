@@ -2,11 +2,11 @@ package main
 
 import (
 	"hwp-searcher/internal/app"
-	"hwp-searcher/internal/config"
-	"hwp-searcher/internal/parser"
-	"hwp-searcher/internal/search"
+	"hwp-searcher/internal/infra/config"
+	"hwp-searcher/internal/infra/parser"
+	"hwp-searcher/internal/infra/search"
+	"hwp-searcher/internal/infra/watcher"
 	"hwp-searcher/internal/server"
-	"hwp-searcher/internal/watcher"
 	"log"
 )
 

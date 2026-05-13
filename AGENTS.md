@@ -21,16 +21,16 @@ go build ./cmd/app
 - `cmd/app` - search server entrypoint.
 - `cmd/client` - Windows WebView client entrypoint.
 - `internal/app` - indexing/search/watch-path use cases and indexing run orchestration.
-- `internal/scanner` - supported document file walking.
-- `internal/worker` - worker pool execution.
-- `internal/parser` - HWP/PDF text extraction.
-- `internal/search` - Bleve search engine.
+- `internal/infra/scanner` - supported document file walking.
+- `internal/infra/worker` - worker pool execution.
+- `internal/infra/parser` - HWP/PDF text extraction.
+- `internal/infra/search` - Bleve search engine.
 - `goHwpTxt` - local HWP/HWPX parser module.
 
 ## Dependencies
 - See [ARCHITECTURE.md](ARCHITECTURE.md) for the runtime flow and dependency map.
 - See [cmd/AGENTS.md](cmd/AGENTS.md) and [internal/AGENTS.md](internal/AGENTS.md) before editing those modules.
-- `internal/parser` calls `goHwpTxt`; treat `goHwpTxt` as an external local replacement unless the task explicitly targets it.
+- `internal/infra/parser` calls `goHwpTxt`; treat `goHwpTxt` as an external local replacement unless the task explicitly targets it.
 
 ```mermaid
 flowchart LR
