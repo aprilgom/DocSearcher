@@ -330,30 +330,30 @@
         </div>
         <div class="meta">
           <div>측정일 <strong>2026-05-13</strong></div>
-          <div>브랜치 <strong>main</strong></div>
-          <div>모듈 <strong>2</strong> · 컨텍스트 파일 <strong>2</strong></div>
+          <div>브랜치 <strong>docs/codex-readiness-improvements</strong></div>
+          <div>모듈 <strong>2</strong> · 컨텍스트 파일 <strong>5</strong></div>
         </div>
       </header>
 
       <section class="grid">
         <div class="panel">
           <div class="eyebrow">Codex 준비도 지수</div>
-          <div class="score-num">17<span>/100</span></div>
-          <div class="badge"><span class="dot"></span>Codex-Hostile</div>
+          <div class="score-num">84<span>/100</span></div>
+          <div class="badge" style="background: var(--green-soft); color: var(--green)"><span class="dot"></span>Codex-Ready</div>
           <p class="summary">
-            루트 AGENTS.md는 있으나 모듈별 컨텍스트, 로컬 워크플로우, 아키텍처 지도,
-            에이전트 성과 근거가 부족합니다. 이 점수는 코드 품질보다 Codex가 안전하게
-            탐색하고 검증할 수 있는지를 측정합니다. 로컬 replace된 외부 패키지
+            ROI 개선으로 모듈별 컨텍스트, 로컬 검증 절차, 안전 경계, 아키텍처 지도,
+            리뷰 템플릿, 에이전트 성과 기록이 추가되었습니다. 이 점수는 코드 품질보다
+            Codex가 안전하게 탐색하고 검증할 수 있는지를 측정합니다. 로컬 replace된 외부 패키지
             <code>goHwpTxt</code>는 측정 범위에서 제외했습니다.
           </p>
           <div class="mini">
             <div>
               <div class="k">컨텍스트 보유 모듈</div>
-              <div class="v">0/2</div>
+              <div class="v">2/2</div>
             </div>
             <div>
               <div class="k">검증 점수</div>
-              <div class="v">7/20</div>
+              <div class="v">14/20</div>
             </div>
             <div>
               <div class="k">300줄 초과</div>
@@ -369,64 +369,64 @@
               <div class="tag">A</div>
               <div>
                 <div class="bar-title">Codex Navigation & Scope Coverage</div>
-                <div class="bar-note">cmd, internal 모듈 컨텍스트 없음</div>
+                <div class="bar-note">cmd, internal 모두 AGENTS.md 보유</div>
               </div>
-              <div class="bar"><span style="width: 0%"></span></div>
-              <div class="score">0/15</div>
+              <div class="bar good"><span style="width: 100%"></span></div>
+              <div class="score">15/15</div>
             </div>
             <div class="bar-row">
               <div class="tag">B</div>
               <div>
                 <div class="bar-title">AGENTS.md / Context Quality</div>
-                <div class="bar-note">quick commands, 핵심 경로, 숨은 규칙, cross-link 보강 필요</div>
+                <div class="bar-note">bash 명령 블록, 핵심 경로, Warning, cross-link 보강</div>
               </div>
-              <div class="bar"><span style="width: 25%"></span></div>
-              <div class="score">5/20</div>
+              <div class="bar good"><span style="width: 75%"></span></div>
+              <div class="score">15/20</div>
             </div>
             <div class="bar-row">
               <div class="tag">C</div>
               <div>
                 <div class="bar-title">Local Development Workflow Clarity</div>
-                <div class="bar-note">모듈별 setup/test/build/done criteria 부족</div>
+                <div class="bar-note">모듈별 setup, test, known failures, done criteria 명시</div>
               </div>
-              <div class="bar"><span style="width: 0%"></span></div>
-              <div class="score">0/15</div>
+              <div class="bar good"><span style="width: 100%"></span></div>
+              <div class="score">15/15</div>
             </div>
             <div class="bar-row">
               <div class="tag">D</div>
               <div>
                 <div class="bar-title">Cross-Module Dependency Mapping</div>
-                <div class="bar-note">ARCHITECTURE.md, Mermaid, dependency section 없음</div>
+                <div class="bar-note">ARCHITECTURE.md, Mermaid, dependency section 추가</div>
               </div>
-              <div class="bar"><span style="width: 0%"></span></div>
-              <div class="score">0/15</div>
+              <div class="bar good"><span style="width: 87%"></span></div>
+              <div class="score">13/15</div>
             </div>
             <div class="bar-row">
               <div class="tag">E</div>
               <div>
                 <div class="bar-title">Verification Gates & Testability</div>
-                <div class="bar-note">경로 참조는 정확하지만 CODEOWNERS, PR template, CI, evals 없음</div>
+                <div class="bar-note">CODEOWNERS, PR template, evals 추가; CI는 아직 없음</div>
               </div>
-              <div class="bar"><span style="width: 35%"></span></div>
-              <div class="score">7/20</div>
+              <div class="bar warn"><span style="width: 70%"></span></div>
+              <div class="score">14/20</div>
             </div>
             <div class="bar-row">
               <div class="tag">F</div>
               <div>
                 <div class="bar-title">Safety, Secrets & Change Boundaries</div>
-                <div class="bar-note">환경변수 예시와 .gitignore secrets 보호 규칙 부족</div>
+                <div class="bar-note">.env.example, .gitignore secrets 보호, destructive command 경계 추가</div>
               </div>
-              <div class="bar"><span style="width: 40%"></span></div>
-              <div class="score">4/10</div>
+              <div class="bar good"><span style="width: 80%"></span></div>
+              <div class="score">8/10</div>
             </div>
             <div class="bar-row">
               <div class="tag">G</div>
               <div>
                 <div class="bar-title">Agent Outcome Evidence</div>
-                <div class="bar-note">evals/benchmark/metric 파일 부재</div>
+                <div class="bar-note">evals baseline과 task pass-rate 기록 방식 추가</div>
               </div>
-              <div class="bar"><span style="width: 20%"></span></div>
-              <div class="score">1/5</div>
+              <div class="bar good"><span style="width: 80%"></span></div>
+              <div class="score">4/5</div>
             </div>
           </div>
         </div>
@@ -437,36 +437,36 @@
         <div class="module-grid">
           <div class="module">
             <div class="name">cmd</div>
-            <div class="detail">2 Go files · 모듈 AGENTS.md 없음 · 서버와 Windows WebView client 진입점</div>
+            <div class="detail">2 Go files · cmd/AGENTS.md 보유 · 서버와 Windows WebView client 진입점</div>
           </div>
           <div class="module">
             <div class="name">internal</div>
-            <div class="detail">7 Go files · 모듈 AGENTS.md 없음 · indexer/parser/search 핵심 구현</div>
+            <div class="detail">7 Go files · internal/AGENTS.md 보유 · indexer/parser/search 핵심 구현</div>
           </div>
         </div>
       </section>
 
       <section class="section two">
         <div class="panel">
-          <h2>주요 약점</h2>
+          <h2>남은 약점</h2>
           <ul class="list">
             <li>
-              <div class="head"><span class="tag">A/C</span> 모듈별 작업 지침 부재</div>
-              <div class="note">핵심 모듈 2개가 모두 로컬 명령, 소유 범위, 검증 기준을 자체 문서로 갖고 있지 않습니다.</div>
+              <div class="head"><span class="tag">E</span> CI 워크플로우 부재</div>
+              <div class="note">CODEOWNERS와 PR 템플릿은 추가됐지만 GitHub Actions 기반 자동 검증은 아직 없습니다.</div>
             </li>
             <li>
-              <div class="head"><span class="tag">D</span> 변경 영향 지도 부재</div>
-              <div class="note">server/client entrypoint, parser, indexer, search, web UI 간 의존성을 한눈에 확인할 architecture 문서가 없습니다.</div>
+              <div class="head"><span class="tag">B</span> cross-link는 최소 수준</div>
+              <div class="note">루트와 모듈 컨텍스트는 연결됐지만, 향후 README와 architecture 간 참조를 더 촘촘히 만들 수 있습니다.</div>
             </li>
             <li>
-              <div class="head"><span class="tag">F/G</span> 안전 경계와 성과 측정 부족</div>
-              <div class="note">secrets/env 규칙, 생성물 경계, evals 또는 benchmark 결과가 부족해 반복 작업 개선 근거가 약합니다.</div>
+              <div class="head"><span class="tag">Scope</span> 외부 패키지 제외 보정 필요</div>
+              <div class="note">자동 스코어러는 `goHwpTxt`를 top-level Go 모듈로 감지하므로, 최종 점수에는 외부 local replace 제외 보정을 적용했습니다.</div>
             </li>
           </ul>
         </div>
 
         <div class="panel">
-          <h2>Top ROI 액션</h2>
+          <h2>완료한 ROI 액션</h2>
           <ul class="list">
             <li>
               <div class="head"><span class="action-tag">C · S · 1h</span> AGENTS.md에 setup, test/lint/build, done criteria 보강</div>
@@ -483,6 +483,10 @@
             <li>
               <div class="head"><span class="action-tag">D · M · 2.5h</span> ARCHITECTURE.md 또는 Mermaid dependency 다이어그램 추가</div>
               <div class="note">cross-module ripple 추적 → 변경 영향 분석 시간 절반</div>
+            </li>
+            <li>
+              <div class="head"><span class="action-tag">G · S</span> evals baseline과 outcome 기록 추가</div>
+              <div class="note">Codex 작업 결과를 pass/partial/fail로 추적할 수 있게 함</div>
             </li>
           </ul>
         </div>
