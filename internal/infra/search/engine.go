@@ -188,25 +188,33 @@ func (e *Engine) search(queryStr string, exactMatch bool, ignoreSpaces bool) (*b
 		return nil, fmt.Errorf("index is closed")
 	}
 
-	var searchRequest *bleve.SearchRequest
-	schema := domain.DefaultIndexSchema()
+	req := domain.SearchRequest{
+		Query: queryStr,
+		Mode:  domain.SearchModeFromFlags(exactMatch, ignoreSpaces),
+	}
+	return e.index.Search(buildSearchRequest(req, domain.DefaultIndexSchema()))
+}
 
-	if ignoreSpaces {
-		query := bleve.NewMatchQuery(queryStr)
+func buildSearchRequest(req domain.SearchRequest, schema domain.IndexSchema) *bleve.SearchRequest {
+	var searchRequest *bleve.SearchRequest
+
+	switch req.Mode {
+	case domain.SearchModeIgnoreSpaces:
+		query := bleve.NewMatchQuery(req.Query)
 		query.FieldVal = schema.ContentNoSpaceField
 		searchRequest = bleve.NewSearchRequest(query)
-	} else if exactMatch {
-		query := bleve.NewMatchPhraseQuery(queryStr)
+	case domain.SearchModeExact:
+		query := bleve.NewMatchPhraseQuery(req.Query)
 		query.FieldVal = schema.ContentField
 		searchRequest = bleve.NewSearchRequest(query)
-	} else {
-		query := bleve.NewQueryStringQuery(queryStr)
+	default:
+		query := bleve.NewQueryStringQuery(req.Query)
 		searchRequest = bleve.NewSearchRequest(query)
 	}
 
 	searchRequest.Fields = []string{schema.PathField, schema.ContentField}
 	searchRequest.Highlight = bleve.NewHighlight()
-	return e.index.Search(searchRequest)
+	return searchRequest
 }
 
 func (e *Engine) Count() (uint64, error) {

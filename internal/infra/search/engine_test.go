@@ -79,3 +79,89 @@ func TestNewEngineCreatesIndependentIndexes(t *testing.T) {
 		t.Fatalf("second Count = %d, want 0", secondCount)
 	}
 }
+
+func TestSearchSupportsQueryModes(t *testing.T) {
+	engine, err := NewEngine(filepath.Join(t.TempDir(), "search.bleve"))
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	defer engine.Close()
+
+	for _, doc := range []domain.IndexedDocument{
+		domain.NewIndexedDocument(domain.NewDocument("plain.hwp", "홍길동 보고서")),
+		domain.NewIndexedDocument(domain.NewDocument("spaced.hwp", "홍 길 동 보고서")),
+	} {
+		if err := engine.IndexDocument(doc); err != nil {
+			t.Fatalf("IndexDocument %s: %v", doc.ID, err)
+		}
+	}
+
+	tests := []struct {
+		name    string
+		req     domain.SearchRequest
+		wantIDs []domain.DocumentID
+	}{
+		{
+			name: "query string search",
+			req: domain.SearchRequest{
+				Query: "홍길동",
+				Mode:  domain.SearchModeQuery,
+			},
+			wantIDs: []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+		},
+		{
+			name: "exact phrase search",
+			req: domain.SearchRequest{
+				Query: "홍길동",
+				Mode:  domain.SearchModeExact,
+			},
+			wantIDs: []domain.DocumentID{"plain.hwp"},
+		},
+		{
+			name: "ignore spaces search",
+			req: domain.SearchRequest{
+				Query: "홍길동",
+				Mode:  domain.SearchModeIgnoreSpaces,
+			},
+			wantIDs: []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := engine.Search(tt.req)
+			if err != nil {
+				t.Fatalf("Search: %v", err)
+			}
+			if !hasExactlyIDs(got.Hits, tt.wantIDs) {
+				t.Fatalf("hits = %v, want IDs %v", hitIDs(got.Hits), tt.wantIDs)
+			}
+		})
+	}
+}
+
+func hasExactlyIDs(hits []domain.SearchHit, want []domain.DocumentID) bool {
+	got := hitIDs(hits)
+	if len(got) != len(want) {
+		return false
+	}
+	remaining := make(map[domain.DocumentID]int, len(want))
+	for _, id := range want {
+		remaining[id]++
+	}
+	for _, id := range got {
+		if remaining[id] == 0 {
+			return false
+		}
+		remaining[id]--
+	}
+	return true
+}
+
+func hitIDs(hits []domain.SearchHit) []domain.DocumentID {
+	ids := make([]domain.DocumentID, 0, len(hits))
+	for _, hit := range hits {
+		ids = append(ids, hit.ID)
+	}
+	return ids
+}
