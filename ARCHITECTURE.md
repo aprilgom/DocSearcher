@@ -23,9 +23,9 @@ code for Codex-readiness ownership.
 3. `cmd/app/main.go` wires `app.IndexRunner`, `watcher.Registry`, and
    `server.Handlers`; internal packages receive dependencies instead of
    constructing parser/search/config implementations themselves.
-4. `watcher.Start(watcher.Registry{StartIndexing: indexRunner.Start})` loads
-   `config.json`, recursively watches configured folders, and triggers initial
-   indexing for each watched path through the injected registry callback.
+4. `watcher.Start()` starts fsnotify handling. `app.WatchPaths.Start()` loads
+   `config.json`, recursively watches configured folders through the injected
+   registry, and triggers initial indexing for each watched path.
 5. `server.Start("8080", handlers)` registers HTML/HTMX endpoints:
    `/`, `/api/search`, `/api/config`, `/api/watch`, `/api/stats`, and
    `/api/index/reset`.
@@ -85,7 +85,6 @@ flowchart TD
     server --> domain
     server --> templates[web/templates]
 
-    watcher --> config
     watcher --> domain
     watcher --> fsnotify[fsnotify]
 

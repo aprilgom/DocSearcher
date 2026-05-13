@@ -1,7 +1,6 @@
 package watcher
 
 import (
-	"hwp-searcher/internal/config"
 	"hwp-searcher/internal/domain"
 	"log"
 	"os"
@@ -39,7 +38,7 @@ func SetFileHandler(handler FileHandler) {
 	fileHandler = handler
 }
 
-func Start(registry Registry) {
+func Start() {
 	var err error
 	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
@@ -64,11 +63,6 @@ func Start(registry Registry) {
 		}
 	}()
 
-	// Watch paths from config
-	config.Load()
-	for _, path := range config.Current.WatchedPaths {
-		registry.AddPath(domain.WatchedPath(path))
-	}
 }
 
 func addPath(root string) error {

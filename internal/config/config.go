@@ -18,6 +18,10 @@ var Current *Config
 
 type Store struct{}
 
+func (Store) Load() error {
+	return Load()
+}
+
 func init() {
 	Current = &Config{
 		WatchedPaths: []string{},

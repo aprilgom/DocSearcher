@@ -12,11 +12,11 @@ type IndexingStatus interface {
 
 type Stats struct {
 	documentCounter DocumentCounter
-	configStore     ConfigStore
+	configStore     WatchPathReader
 	indexingStatus  IndexingStatus
 }
 
-func NewStats(documentCounter DocumentCounter, configStore ConfigStore, indexingStatus IndexingStatus) Stats {
+func NewStats(documentCounter DocumentCounter, configStore WatchPathReader, indexingStatus IndexingStatus) Stats {
 	return Stats{
 		documentCounter: documentCounter,
 		configStore:     configStore,
