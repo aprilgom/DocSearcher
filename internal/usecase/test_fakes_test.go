@@ -1,6 +1,11 @@
 package usecase
 
-import "hwp-searcher/internal/domain"
+import (
+	"reflect"
+	"testing"
+
+	"hwp-searcher/internal/domain"
+)
 
 type fakeExtractor struct {
 	text string
@@ -11,6 +16,10 @@ type fakeExtractor struct {
 func (f *fakeExtractor) ExtractText(path string) (string, error) {
 	f.path = path
 	return f.text, f.err
+}
+
+func (f *fakeExtractor) LastRequestedPath() string {
+	return f.path
 }
 
 type fakeIndex struct {
@@ -45,6 +54,25 @@ func (f *fakeIndex) Reset() error {
 	return nil
 }
 
+func (f *fakeIndex) IndexedDocument() (domain.IndexedDocument, bool) {
+	if f.indexed == nil {
+		return domain.IndexedDocument{}, false
+	}
+	return *f.indexed, true
+}
+
+func (f *fakeIndex) DeletedID() domain.DocumentID {
+	return f.deleted
+}
+
+func (f *fakeIndex) LastSearchRequest() domain.SearchRequest {
+	return f.search
+}
+
+func (f *fakeIndex) WasReset() bool {
+	return f.reset
+}
+
 type fakeConfigStore struct {
 	paths   []domain.WatchedPath
 	added   domain.WatchedPath
@@ -72,6 +100,23 @@ func (f *fakeConfigStore) RemovePath(path domain.WatchedPath) error {
 	return nil
 }
 
+func (f *fakeConfigStore) StoredPaths() []domain.WatchedPath {
+	return append([]domain.WatchedPath(nil), f.paths...)
+}
+
+func (f *fakeConfigStore) WasLoaded() bool {
+	return f.loaded
+}
+
+func (f *fakeConfigStore) HasStoredPath(path domain.WatchedPath) bool {
+	for _, stored := range f.paths {
+		if stored == path {
+			return true
+		}
+	}
+	return false
+}
+
 type fakeWatchRegistry struct {
 	added   []domain.WatchedPath
 	removed domain.WatchedPath
@@ -85,6 +130,10 @@ func (f *fakeWatchRegistry) AddPath(path domain.WatchedPath) error {
 func (f *fakeWatchRegistry) RemovePath(path domain.WatchedPath) error {
 	f.removed = path
 	return nil
+}
+
+func (f *fakeWatchRegistry) RegisteredPaths() []domain.WatchedPath {
+	return append([]domain.WatchedPath(nil), f.added...)
 }
 
 type failingWatchRegistry struct {
@@ -101,10 +150,21 @@ func (f *failingWatchRegistry) RemovePath(path domain.WatchedPath) error {
 	return nil
 }
 
+func (f *failingWatchRegistry) RegisteredPaths() []domain.WatchedPath {
+	return append([]domain.WatchedPath(nil), f.added...)
+}
+
 type fakeIndexingStatus struct {
 	indexing bool
 }
 
 func (f fakeIndexingStatus) IsIndexing() bool {
 	return f.indexing
+}
+
+func assertWatchedPaths(t *testing.T, got []domain.WatchedPath, want []domain.WatchedPath, scenario string) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("%s: watched paths = %v, want %v", scenario, got, want)
+	}
 }

@@ -1,34 +1,74 @@
 package goHwpTxt
 
 import (
+	"archive/zip"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func TestExtractText(t *testing.T) {
-	// Find all files in testdata
-	files, err := filepath.Glob("testdata/*")
+func TestExtractTextExtractsTextFromSyntheticHWPX(t *testing.T) {
+	// Given
+	path := writeSyntheticHWPX(t, t.TempDir(), "fixture.hwpx", []hwpxSection{
+		{name: "Contents/section0.xml", text: "첫 문단"},
+		{name: "Contents/header0.xml", text: "머리말"},
+		{name: "Preview/ignored.xml", text: "무시할 문장"},
+	})
+
+	// When
+	text, err := ExtractText(path)
+
+	// Then
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("ExtractText(%q) returned error for synthetic HWPX fixture: %v", path, err)
+	}
+	for _, want := range []string{"첫 문단", "머리말"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("ExtractText(%q) text = %q, want it to contain %q", path, text, want)
+		}
+	}
+	if strings.Contains(text, "무시할 문장") {
+		t.Fatalf("ExtractText(%q) text = %q, want Preview XML to be ignored", path, text)
+	}
+}
+
+type hwpxSection struct {
+	name string
+	text string
+}
+
+func writeSyntheticHWPX(t *testing.T, dir, name string, sections []hwpxSection) string {
+	t.Helper()
+
+	path := filepath.Join(dir, name)
+	out, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("Create synthetic HWPX %q returned error: %v", path, err)
+	}
+	defer func() {
+		if err := out.Close(); err != nil {
+			t.Fatalf("Close synthetic HWPX file %q returned error: %v", path, err)
+		}
+	}()
+
+	writer := zip.NewWriter(out)
+	defer func() {
+		if err := writer.Close(); err != nil {
+			t.Fatalf("Close synthetic HWPX %q returned error: %v", path, err)
+		}
+	}()
+
+	for _, section := range sections {
+		file, err := writer.Create(section.name)
+		if err != nil {
+			t.Fatalf("Create section %q in synthetic HWPX returned error: %v", section.name, err)
+		}
+		xml := `<?xml version="1.0" encoding="UTF-8"?><hp:section xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph"><hp:p><hp:t>` + section.text + `</hp:t></hp:p></hp:section>`
+		if _, err := file.Write([]byte(xml)); err != nil {
+			t.Fatalf("Write section %q in synthetic HWPX returned error: %v", section.name, err)
+		}
 	}
 
-	if len(files) == 0 {
-		t.Skip("No test files found in testdata/")
-	}
-
-	for _, file := range files {
-		t.Run(filepath.Base(file), func(t *testing.T) {
-			t.Logf("Testing file: %s", file)
-			text, err := ExtractText(file)
-			if err != nil {
-				t.Errorf("Failed to extract text from %s: %v", file, err)
-				return
-			}
-			if len(text) == 0 {
-				t.Errorf("Extracted text is empty for %s", file)
-			}
-			// Optional: print length for debug
-			t.Logf("Extracted %d characters from %s", len(text), filepath.Base(file))
-		})
-	}
+	return path
 }
