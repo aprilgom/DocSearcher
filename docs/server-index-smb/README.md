@@ -9,13 +9,50 @@ desktop clients open the same documents through Samba/SMB paths.
 ## Read Order
 
 1. [Contracts](contracts.md) - data model, config, API, open flow, indexing, and
-   Bleve storage contracts.
+   Bleve storage contract map. Detailed contract files live under
+   [`contracts/`](contracts/).
 2. [Implementation Plan](implementation-plan.md) - affected code areas,
-   decisions, phased tasks, migration, and remaining questions.
+   decisions, phased tasks, migration, and remaining questions map. Detailed
+   plan files live under [`implementation/`](implementation/).
 3. [Verification](verification.md) - test cases and platform-specific manual
-   checks.
+   checks map. Detailed verification files live under
+   [`verification/`](verification/).
 4. [Operations And Security](operations-security.md) - deployment shape,
-   Samba/Tailscale assumptions, and security controls.
+   Samba/Tailscale assumptions, and security controls map. Detailed operations
+   files live under [`operations/`](operations/).
+
+## Split Documents
+
+Contract details:
+
+- [Data Model](contracts/data-model.md)
+- [Server Config](contracts/server-config.md)
+- [Client Config](contracts/client-config.md)
+- [API Contract](contracts/api-contract.md)
+- [Open Flow](contracts/open-flow.md)
+- [Indexing And Watch Rules](contracts/indexing-watch.md)
+- [Bleve Storage Contract](contracts/bleve-storage.md)
+- [Cross-Platform Name Caveats](contracts/name-caveats.md)
+
+Implementation details:
+
+- [Overview And Milestones](implementation/overview.md)
+- [Implementation Tasks](implementation/tasks.md)
+- [Migration And Questions](implementation/migration.md)
+
+Verification details:
+
+- [Server Verification](verification/server.md)
+- [Client Verification](verification/client.md)
+- [Repository Verification](verification/repository.md)
+
+Operations details:
+
+- [Target Deployment](operations/deployment.md)
+- [Deployment Runbook](operations/runbook.md)
+- [Operational Diagnostics](operations/diagnostics.md)
+- [Security Model](operations/security.md)
+- [Data Exposure Rules](operations/data-exposure.md)
 
 ## Core Decision
 
@@ -102,58 +139,21 @@ supports the logical payload.
 - Implement `document_roots` before changing open behavior.
 - Reset and rebuild `hwp-index.bleve` when switching from absolute path IDs to
   logical IDs.
-- Keep `server_path` out of search responses, root metadata responses, browser
-  copy actions, and desktop open payloads. If `server_path` is stored in Bleve,
-  it is stored-only diagnostics and must never be indexed, highlighted,
-  queryable, or returned to clients.
-- Validate `relative_path` before indexing. If a file's relative path is not
-  valid UTF-8 text or is not SMB-open-safe, including any control character,
-  `\`, Windows-illegal filename character (`*`, `?`, `"`, `<`, `>`, `|`), or
-  reserved device basename (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`,
-  `LPT1`-`LPT9`, including with extensions), or any path segment ending in a
-  space or `.`, skip that file and log an operational warning instead of
-  encoding, replacing, or rewriting the path.
-- Validate `smb_host` and `smb_share` as UNC/SMB URL components: trim them,
-  reject empty values, reject slashes, backslashes, whitespace, and control
-  characters, reject `%`, non-ASCII text, and `:` in `smb_host`, reject
-  UNC/path metacharacters in `smb_share` (`:`, `*`, `?`, `"`, `<`, `>`, `|`),
-  and keep `smb_share` to a single share name. Only ASCII hostnames, IP
-  addresses, and Tailscale names are supported in Milestone 1; IDNA, ports, and
-  IPv6 literals are unsupported until explicitly normalized later.
-- `smb_aliases` is optional server-root metadata shaped as an array of
-  `{ "host": "...", "share": "..." }` pairs. Aliases are operator-owned server
-  config because they authorize alternate shares or DFS names for the same root.
-  Alias host/share values follow the same trimming, validation, and
-  normalization rules as `smb_host` and `smb_share`.
-- Reject duplicate canonical `server_path` document roots during config
-  validation. Parent/child overlaps remain valid when the canonical roots differ.
-- Treat Samba share mapping as operator-owned config. DocSearcher should not
-  parse Samba config files.
+- Keep `server_path` server-only; see
+  [Bleve Storage Contract](contracts/bleve-storage.md) for diagnostic storage
+  limits.
+- Validate `relative_path`, SMB metadata, aliases, and root containment before
+  indexing or opening; see [Data Model](contracts/data-model.md),
+  [Server Config](contracts/server-config.md), and
+  [Client Config](contracts/client-config.md).
+- Treat Samba share mapping as operator-owned config. DocSearcher does not parse
+  Samba config files.
 - Use Wails for new cross-platform desktop behavior. Keep `cmd/client` as the
   current Windows WebView2 client until it is intentionally retired.
-- If root metadata is missing, stale, or inconsistent with a search hit, refresh
-  root metadata once for known stale-cache failure classes, then fail open/reveal
-  with a clear client error instead of guessing a path. `GET
-  /api/document-roots` returns a root metadata `revision`; search
-  responses/fragments carry the revision used for rendering, and clients refresh
-  root metadata before open/reveal when their cached revision is missing or
-  differs. The revision is server-generated and opaque for the whole root
-  metadata set; it changes on any root metadata or validation-canonicalization
-  change, and clients compare it only for equality.
-- Desktop bridge and browser copy code must revalidate raw `relative_path`
-  values received from API, HTMX, DOM, or logical-ID payloads before deriving
-  UNC paths, SMB URLs, or mounted paths. Treat the server as the source of
-  truth, but fail closed on hostile or stale client payloads instead of trusting
-  cached DOM/API data. Client revalidation must also reject non-UTF-8 text,
-  control characters, `.` segments such as `a/./b.hwp`, and empty segments such
-  as `a//b.hwp` instead of slash-normalizing malformed payloads.
-- macOS mount discovery and client-local mount overrides must verify that the
-  selected mount root matches the expected SMB host/share when the OS exposes
-  mount identity. If the match cannot be verified or differs, fail with a clear
-  mount-unverified or mount-mismatch error instead of opening from that path.
-- Windows UNC overrides must match the expected normalized SMB host/share or any
-  normalized `smb_aliases` pair for that root. Drive-letter overrides remain
-  explicit local config and containment-only.
+- Refresh root metadata by `revision`, revalidate raw client payloads, and fail
+  closed instead of guessing open paths; see [API Contract](contracts/api-contract.md)
+  and [Open Flow](contracts/open-flow.md).
+- Verify mount/override identity before native open where possible.
 - Do not use the legacy `openFile(path)` bridge as a fallback after the server
   stops returning client-local absolute paths.
 
