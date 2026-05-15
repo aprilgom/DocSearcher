@@ -3,7 +3,8 @@
 ## Codex Brief
 
 DocSearcher should run one server-side index over documents stored on a Linux
-server, while desktop clients open search hits through their own SMB mounts.
+server. Each indexed server root should be exposed as a Samba share, and desktop
+clients should open search hits through that SMB share.
 
 The important implementation shift is:
 
@@ -12,9 +13,11 @@ Current: document identity == server absolute path
 Target:  document identity == root_id + relative_path
 ```
 
-The server must keep using Linux paths for parsing, watching, and indexing.
-Clients must resolve logical search-hit paths to local SMB paths before asking
-the operating system to open or reveal a file.
+The server must keep using Linux paths for parsing, watching, and indexing. SMB
+share metadata is configured on the server document root. Windows clients should
+open derived UNC paths by default, while macOS clients should resolve the SMB
+share to a mounted filesystem path before asking the operating system to open or
+reveal a file.
 
 ## Goals
 
@@ -57,8 +60,11 @@ root_id       = documents
 relative_path = shared/2026/sample.hwp
 document_id   = documents:shared/2026/sample.hwp
 server_path   = /data/documents/shared/2026/sample.hwp
+smb_unc       = \\docserver\documents
 ```
 
 The API should expose `root_id` and `relative_path`. The server may use
-`server_path` internally, but clients must resolve openable file paths from their
-own local SMB mount configuration.
+`server_path` internally, but clients must not treat it as openable. Windows
+clients derive openable UNC paths from server root SMB metadata. macOS clients
+use the same SMB metadata to locate or mount the share and then open the local
+mounted file path.

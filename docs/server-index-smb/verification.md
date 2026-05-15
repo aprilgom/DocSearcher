@@ -1,36 +1,9 @@
 # Server Index SMB Verification
 
-## Server Verification
+This file is the verification map for the server-index-SMB design. Detailed checks are split by verification scope.
 
-- Unit test logical ID creation from `root_id`, `server_path`, and file path.
-- Unit test slash-normalized `relative_path` storage.
-- Unit test search result hydration includes `root_id` and `relative_path`.
-- Integration test re-index after file change under a configured root.
+## Verification Files
 
-## Client Verification
-
-- Unit test Windows mount joining from `root_id` and `relative_path`.
-- Unit test missing mount, missing file, and permission/open error messages.
-- Manual Windows test: search, double-click, edit in native app, save, close, and
-  confirm server-side re-index sees the update.
-
-## Repository Verification
-
-On macOS/Linux:
-
-```bash
-go test $(go list ./... | grep -v '/cmd/client$')
-go build ./cmd/app
-```
-
-On Windows, also run:
-
-```bash
-go run ./cmd/client
-```
-
-If `goHwpTxt` is touched, also run:
-
-```bash
-cd goHwpTxt && go test ./...
-```
+1. [Server Verification](verification/server.md) - domain, config, indexing, watcher, search, API, and HTMX checks.
+2. [Client Verification](verification/client.md) - Windows/macOS path derivation, mount identity, desktop bridge, copy, and open/reveal checks.
+3. [Repository Verification](verification/repository.md) - documentation-only checks and Go verification commands.
