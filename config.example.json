@@ -1,3 +1,17 @@
 {
-  "watched_paths": []
+  "document_roots": [
+    {
+      "id": "documents",
+      "name": "문서 공유",
+      "server_path": "/data/documents",
+      "smb_host": "docserver",
+      "smb_share": "documents",
+      "smb_aliases": [
+        {
+          "host": "dfs-docs",
+          "share": "documents"
+        }
+      ]
+    }
+  ]
 }
