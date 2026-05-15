@@ -64,6 +64,34 @@ func TestWatchPathsResetReindexesWatchedPaths(t *testing.T) {
 	}
 }
 
+func TestWatchPathsResetReindexesDocumentRootsWhenConfigured(t *testing.T) {
+	// given
+	index := &fakeIndex{}
+	store := &fakeConfigStore{
+		paths: []domain.WatchedPath{"/legacy"},
+		documentRoots: []domain.DocumentRoot{
+			{ID: "documents", ServerPath: "/srv/documents"},
+			{ID: "archive", ServerPath: "/srv/archive"},
+		},
+	}
+	registry := &fakeWatchRegistry{}
+	watchPaths := NewWatchPaths(store, registry)
+
+	// when
+	err := watchPaths.ResetIndex(index)
+
+	// then
+	if err != nil {
+		t.Fatalf("ResetIndex returned error: %v", err)
+	}
+	if !index.reset {
+		t.Fatal("Reset was not called")
+	}
+	if len(registry.added) != 2 || registry.added[0] != "/srv/documents" || registry.added[1] != "/srv/archive" {
+		t.Fatalf("registered paths = %v, want document roots", registry.added)
+	}
+}
+
 func TestWatchPathsStartLoadsStoreAndRegistersWatchedPaths(t *testing.T) {
 	store := &fakeConfigStore{paths: []domain.WatchedPath{"/a", "/b"}}
 	registry := &fakeWatchRegistry{}
@@ -79,6 +107,33 @@ func TestWatchPathsStartLoadsStoreAndRegistersWatchedPaths(t *testing.T) {
 	}
 	if len(registry.added) != 2 || registry.added[0] != "/a" || registry.added[1] != "/b" {
 		t.Fatalf("registered paths = %v, want [/a /b]", registry.added)
+	}
+}
+
+func TestWatchPathsStartRegistersDocumentRootsWhenConfigured(t *testing.T) {
+	// given
+	store := &fakeConfigStore{
+		paths: []domain.WatchedPath{"/legacy"},
+		documentRoots: []domain.DocumentRoot{
+			{ID: "documents", ServerPath: "/srv/documents"},
+			{ID: "archive", ServerPath: "/srv/archive"},
+		},
+	}
+	registry := &fakeWatchRegistry{}
+	watchPaths := NewWatchPaths(store, registry)
+
+	// when
+	err := watchPaths.Start()
+
+	// then
+	if err != nil {
+		t.Fatalf("Start returned error: %v", err)
+	}
+	if !store.loaded {
+		t.Fatal("config store was not loaded")
+	}
+	if len(registry.added) != 2 || registry.added[0] != "/srv/documents" || registry.added[1] != "/srv/archive" {
+		t.Fatalf("registered paths = %v, want document roots", registry.added)
 	}
 }
 

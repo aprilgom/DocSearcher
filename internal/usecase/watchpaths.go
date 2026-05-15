@@ -6,8 +6,13 @@ type WatchPathReader interface {
 	WatchedPaths() []domain.WatchedPath
 }
 
+type DocumentRootReader interface {
+	DocumentRoots() []domain.DocumentRoot
+}
+
 type ConfigStore interface {
 	WatchPathReader
+	DocumentRootReader
 	Load() error
 	AddPath(path domain.WatchedPath) error
 	RemovePath(path domain.WatchedPath) error
@@ -43,7 +48,7 @@ func (w WatchPaths) Start() error {
 		return err
 	}
 	var firstErr error
-	for _, path := range w.configStore.WatchedPaths() {
+	for _, path := range w.rootPaths() {
 		if err := w.watchRegistry.AddPath(path); err != nil {
 			if firstErr == nil {
 				firstErr = err
@@ -73,10 +78,22 @@ func (w WatchPaths) ResetIndex(index IndexResetter) error {
 	if err := index.Reset(); err != nil {
 		return err
 	}
-	for _, path := range w.configStore.WatchedPaths() {
+	for _, path := range w.rootPaths() {
 		if err := w.watchRegistry.AddPath(path); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (w WatchPaths) rootPaths() []domain.WatchedPath {
+	roots := w.configStore.DocumentRoots()
+	if len(roots) == 0 {
+		return w.configStore.WatchedPaths()
+	}
+	paths := make([]domain.WatchedPath, 0, len(roots))
+	for _, root := range roots {
+		paths = append(paths, domain.WatchedPath(root.ServerPath))
+	}
+	return paths
 }

@@ -46,10 +46,11 @@ func (f *fakeIndex) Reset() error {
 }
 
 type fakeConfigStore struct {
-	paths   []domain.WatchedPath
-	added   domain.WatchedPath
-	removed domain.WatchedPath
-	loaded  bool
+	paths         []domain.WatchedPath
+	documentRoots []domain.DocumentRoot
+	added         domain.WatchedPath
+	removed       domain.WatchedPath
+	loaded        bool
 }
 
 func (f *fakeConfigStore) Load() error {
@@ -59,6 +60,10 @@ func (f *fakeConfigStore) Load() error {
 
 func (f *fakeConfigStore) WatchedPaths() []domain.WatchedPath {
 	return f.paths
+}
+
+func (f *fakeConfigStore) DocumentRoots() []domain.DocumentRoot {
+	return f.documentRoots
 }
 
 func (f *fakeConfigStore) AddPath(path domain.WatchedPath) error {

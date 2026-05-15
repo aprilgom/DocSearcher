@@ -3,6 +3,7 @@ package scanner
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"testing"
 )
@@ -60,4 +61,46 @@ func relativePaths(t *testing.T, root string, paths []string) []string {
 		relPaths = append(relPaths, filepath.ToSlash(rel))
 	}
 	return relPaths
+}
+
+func TestWalkSkipsSymlinkEntries(t *testing.T) {
+	// given
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "real.hwp"), []byte("real"), 0o644); err != nil {
+		t.Fatalf("WriteFile real: %v", err)
+	}
+	targetDir := filepath.Join(root, "target")
+	if err := os.Mkdir(targetDir, 0o755); err != nil {
+		t.Fatalf("Mkdir target: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "inside.hwp"), []byte("inside"), 0o644); err != nil {
+		t.Fatalf("WriteFile inside: %v", err)
+	}
+	if err := os.Symlink(filepath.Join(root, "real.hwp"), filepath.Join(root, "linked.hwp")); err != nil {
+		t.Skipf("Symlink unsupported: %v", err)
+	}
+	if err := os.Symlink(targetDir, filepath.Join(root, "linked-dir")); err != nil {
+		t.Skipf("directory Symlink unsupported: %v", err)
+	}
+
+	var got []string
+	// when
+	err := Walk(root, func(path string) error {
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			t.Fatalf("Rel: %v", relErr)
+		}
+		got = append(got, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Walk: %v", err)
+	}
+	sort.Strings(got)
+
+	// then
+	want := []string{"real.hwp", "target/inside.hwp"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("visited = %#v, want %#v", got, want)
+	}
 }

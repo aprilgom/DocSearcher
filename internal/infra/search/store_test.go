@@ -16,7 +16,7 @@ func TestIndexStoreOpenAndDelegatesDocumentOperations(t *testing.T) {
 
 	schema := domain.DefaultIndexSchema()
 	codec := newDocumentCodec(schema)
-	doc := domain.NewIndexedDocument(domain.NewDocument("alpha.hwp", "홍길동 보고서"))
+	doc := logicalIndexedDocument("documents", "alpha.hwp", "홍길동 보고서")
 
 	if count, err := store.count(); err != nil || count != 0 {
 		t.Fatalf("count before index = %d, %v; want 0, nil", count, err)
@@ -64,7 +64,7 @@ func TestIndexStoreClosedOperationsReturnClosedErrorsAndCloseIsIdempotent(t *tes
 
 	schema := domain.DefaultIndexSchema()
 	codec := newDocumentCodec(schema)
-	doc := domain.NewIndexedDocument(domain.NewDocument("closed.hwp", "닫힌 인덱스 문서"))
+	doc := logicalIndexedDocument("documents", "closed.hwp", "닫힌 인덱스 문서")
 
 	if _, err := store.count(); !isIndexClosedError(err) {
 		t.Fatalf("count error = %v, want index is closed", err)

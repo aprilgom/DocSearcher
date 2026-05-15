@@ -18,15 +18,21 @@ type Document struct {
 
 type IndexedDocument struct {
 	ID             DocumentID
+	RootID         RootID
+	RelativePath   RelativePath
 	Content        string
 	ContentNoSpace string
 	Path           string
+	ServerPath     string
 }
 
 type IndexSchema struct {
 	ContentField        string
 	ContentNoSpaceField string
 	PathField           string
+	RootIDField         string
+	RelativePathField   string
+	ServerPathField     string
 }
 
 type SearchPolicy struct {
@@ -55,8 +61,11 @@ type SearchResult struct {
 }
 
 type SearchHit struct {
-	ID       DocumentID
-	Fragment string
+	ID           DocumentID
+	RootID       RootID
+	RelativePath RelativePath
+	Path         string
+	Fragment     string
 }
 
 type Stats struct {
@@ -79,6 +88,7 @@ func NewIndexedDocument(doc Document) IndexedDocument {
 		Content:        doc.Content,
 		ContentNoSpace: NormalizeNoSpaceContent(doc.Content),
 		Path:           doc.Path,
+		ServerPath:     doc.Path,
 	}
 }
 
@@ -87,6 +97,9 @@ func DefaultIndexSchema() IndexSchema {
 		ContentField:        "content",
 		ContentNoSpaceField: "content_nospace",
 		PathField:           "path",
+		RootIDField:         "root_id",
+		RelativePathField:   "relative_path",
+		ServerPathField:     "server_path",
 	}
 }
 

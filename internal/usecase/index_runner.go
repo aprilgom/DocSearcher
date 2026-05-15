@@ -1,24 +1,33 @@
 package usecase
 
 import (
+	"hwp-searcher/internal/domain"
 	"hwp-searcher/internal/infra/scanner"
 	"hwp-searcher/internal/infra/worker"
 	"log"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 )
 
 type FileProcessor func(path string) error
 
 type IndexRunner struct {
-	processFile FileProcessor
-	workerPool  worker.Pool
-	running     atomic.Bool
+	processFile   FileProcessor
+	workerPool    worker.Pool
+	documentRoots []domain.DocumentRoot
+	running       atomic.Bool
 }
 
-func NewIndexRunner(processFile FileProcessor) *IndexRunner {
+func NewIndexRunner(processFile FileProcessor, documentRoots ...[]domain.DocumentRoot) *IndexRunner {
+	var roots []domain.DocumentRoot
+	if len(documentRoots) > 0 {
+		roots = append([]domain.DocumentRoot(nil), documentRoots[0]...)
+	}
 	return &IndexRunner{
-		processFile: processFile,
-		workerPool:  worker.Pool{Size: 4},
+		processFile:   processFile,
+		workerPool:    worker.Pool{Size: 4},
+		documentRoots: roots,
 	}
 }
 
@@ -48,7 +57,7 @@ func (r *IndexRunner) Run(root string) error {
 		r.workerPool.Run(jobs, r.process)
 	}()
 
-	err := scanner.Walk(root, func(path string) error {
+	err := scanner.WalkWithOptions(root, scanner.WalkOptions{SkipDir: r.skipChildRoot(root)}, func(path string) error {
 		jobs <- path
 		return nil
 	})
@@ -56,6 +65,31 @@ func (r *IndexRunner) Run(root string) error {
 	close(jobs)
 	<-done
 	return err
+}
+
+func (r *IndexRunner) skipChildRoot(scanRoot string) func(path string) bool {
+	if len(r.documentRoots) == 0 {
+		return nil
+	}
+	cleanScanRoot := filepath.Clean(scanRoot)
+	return func(path string) bool {
+		cleanPath := filepath.Clean(path)
+		if cleanPath == cleanScanRoot {
+			return false
+		}
+		for _, root := range r.documentRoots {
+			rootPath := filepath.Clean(root.ServerPath)
+			if rootPath == cleanScanRoot || rootPath != cleanPath {
+				continue
+			}
+			rel, err := filepath.Rel(cleanScanRoot, rootPath)
+			if err != nil || filepath.IsAbs(rel) || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				continue
+			}
+			return true
+		}
+		return false
+	}
 }
 
 func (r *IndexRunner) IsIndexing() bool {

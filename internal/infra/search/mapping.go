@@ -59,6 +59,21 @@ func buildIndexMapping() (mapping.IndexMapping, error) {
 	pathFieldMapping.Store = true
 	docMapping.AddFieldMappingsAt(schema.PathField, pathFieldMapping)
 
+	rootIDFieldMapping := bleve.NewTextFieldMapping()
+	rootIDFieldMapping.Store = true
+	rootIDFieldMapping.Index = false
+	docMapping.AddFieldMappingsAt(schema.RootIDField, rootIDFieldMapping)
+
+	relativePathFieldMapping := bleve.NewTextFieldMapping()
+	relativePathFieldMapping.Store = true
+	relativePathFieldMapping.Index = false
+	docMapping.AddFieldMappingsAt(schema.RelativePathField, relativePathFieldMapping)
+
+	serverPathFieldMapping := bleve.NewTextFieldMapping()
+	serverPathFieldMapping.Store = true
+	serverPathFieldMapping.Index = false
+	docMapping.AddFieldMappingsAt(schema.ServerPathField, serverPathFieldMapping)
+
 	indexMapping.DefaultMapping = docMapping
 
 	return indexMapping, nil

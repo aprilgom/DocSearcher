@@ -15,5 +15,8 @@ func (c documentCodec) fieldMap(doc domain.IndexedDocument) map[string]string {
 		c.schema.ContentField:        doc.Content,
 		c.schema.ContentNoSpaceField: doc.ContentNoSpace,
 		c.schema.PathField:           string(doc.ID),
+		c.schema.RootIDField:         string(doc.RootID),
+		c.schema.RelativePathField:   string(doc.RelativePath),
+		c.schema.ServerPathField:     doc.ServerPath,
 	}
 }

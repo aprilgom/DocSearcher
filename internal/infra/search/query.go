@@ -23,7 +23,7 @@ func buildSearchRequest(req domain.SearchRequest, schema domain.IndexSchema) *bl
 		searchRequest = bleve.NewSearchRequest(query)
 	}
 
-	searchRequest.Fields = []string{schema.PathField, schema.ContentField}
+	searchRequest.Fields = []string{schema.PathField, schema.RootIDField, schema.RelativePathField, schema.ServerPathField, schema.ContentField}
 	searchRequest.Highlight = bleve.NewHighlight()
 	return searchRequest
 }

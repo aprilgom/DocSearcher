@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"hwp-searcher/internal/domain"
 	"os"
 	"path/filepath"
 	"sort"
@@ -46,6 +47,40 @@ func TestIndexRunnerRunScansSupportedDocuments(t *testing.T) {
 	sort.Strings(got)
 	sort.Strings(want)
 
+	if len(got) != len(want) {
+		t.Fatalf("processed paths = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("processed paths = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestIndexRunnerRunSkipsChildDocumentRootSubtrees(t *testing.T) {
+	// given
+	root := t.TempDir()
+	childRoot := filepath.Join(root, "shared")
+	mustWriteIndexRunnerFile(t, root, "root.hwp")
+	mustWriteIndexRunnerFile(t, root, "shared/child.hwp")
+	mustWriteIndexRunnerFile(t, root, "shared-namesake/not-child.hwp")
+
+	processor := &recordingFileProcessor{}
+	runner := NewIndexRunner(processor.Process, []domain.DocumentRoot{
+		{ID: "documents", ServerPath: root},
+		{ID: "shared", ServerPath: childRoot},
+	})
+
+	// when
+	if err := runner.Run(root); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	// then
+	got := relativeIndexRunnerPaths(t, root, processor.Processed())
+	want := []string{"root.hwp", "shared-namesake/not-child.hwp"}
+	sort.Strings(got)
+	sort.Strings(want)
 	if len(got) != len(want) {
 		t.Fatalf("processed paths = %v, want %v", got, want)
 	}

@@ -10,6 +10,16 @@ import (
 	"testing"
 )
 
+const (
+	serverTestQuery        = "test"
+	serverTestLogicalID    = domain.DocumentID("documents:reports/sample.hwp")
+	serverTestOpenPath     = "/srv/documents/reports/sample.hwp"
+	serverTestEscapedOpen  = "triggerOpen('\\/srv\\/documents\\/reports\\/sample.hwp')"
+	serverTestEscapedID    = "triggerOpen('documents:reports/sample.hwp')"
+	serverTestSearchTotal  = uint64(1)
+	serverTestFragmentText = "before <mark>match</mark> after"
+)
+
 type fakeSearcher struct {
 	result domain.SearchResult
 	err    error
@@ -142,6 +152,36 @@ func TestSearchHandlerPreservesSafeHighlightMarkTags(t *testing.T) {
 	}
 }
 
+func TestSearchHandlerUsesHydratedHitPathForOpenAction(t *testing.T) {
+	// given
+	mux := NewMux(Handlers{
+		Searcher: fakeSearcher{
+			result: searchResultFixture(domain.SearchHit{
+				ID:       serverTestLogicalID,
+				Path:     serverTestOpenPath,
+				Fragment: serverTestFragmentText,
+			}),
+		},
+		WatchPaths: fakeWatchPaths{},
+		Stats:      fakeStats{},
+		Resetter:   fakeResetter{},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q="+url.QueryEscape(serverTestQuery), nil)
+	rec := httptest.NewRecorder()
+
+	// when
+	mux.ServeHTTP(rec, req)
+
+	// then
+	body := rec.Body.String()
+	if !strings.Contains(body, serverTestEscapedOpen) {
+		t.Fatalf("search response does not use hydrated open path: %q", body)
+	}
+	if strings.Contains(body, serverTestEscapedID) {
+		t.Fatalf("search response uses logical ID as open path: %q", body)
+	}
+}
+
 func TestConfigHandlerEscapesWatchedPathHTML(t *testing.T) {
 	mux := NewMux(Handlers{
 		Searcher:   fakeSearcher{},
@@ -231,5 +271,12 @@ func TestStatsHandlerReportsCurrentError(t *testing.T) {
 	}
 	if !strings.Contains(body, "Stats failed: stats failed &lt;unsafe&gt;") {
 		t.Fatalf("stats error not reported, got %q", body)
+	}
+}
+
+func searchResultFixture(hit domain.SearchHit) domain.SearchResult {
+	return domain.SearchResult{
+		Total: serverTestSearchTotal,
+		Hits:  []domain.SearchHit{hit},
 	}
 }

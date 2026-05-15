@@ -43,9 +43,12 @@ func main() {
 	}
 	defer searchEngine.Close()
 
-	fileIndexer := usecase.NewIndexer(parser.TextExtractor{}, searchEngine)
-	indexRunner := usecase.NewIndexRunner(fileIndexer.IndexFile)
 	configStore := config.NewStore(config.ConfigFile)
+	if err := configStore.Load(); err != nil {
+		log.Fatal("Failed to load config:", err)
+	}
+	fileIndexer := usecase.NewIndexer(parser.TextExtractor{}, searchEngine, configStore.DocumentRoots())
+	indexRunner := usecase.NewIndexRunner(fileIndexer.IndexFile, configStore.DocumentRoots())
 	fileWatcher := watcher.New(fileHandler{indexer: fileIndexer})
 	watchRegistry := watcher.Registry{Watcher: fileWatcher, StartIndexing: indexRunner.Start}
 	watchPaths := usecase.NewWatchPaths(configStore, watchRegistry)

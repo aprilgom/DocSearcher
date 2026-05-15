@@ -14,6 +14,19 @@ import (
 	blevequery "github.com/blevesearch/bleve/v2/search/query"
 )
 
+const (
+	testRootID       domain.RootID       = "documents"
+	testRelativePath domain.RelativePath = "shared/2026/sample.hwp"
+	testSearchText                       = "홍길동 보고서"
+	testLegacyPath                       = "/legacy/report.hwp"
+	testServerPath                       = "/srv/documents/shared/2026/sample.hwp"
+
+	searchFixtureSingleTotal               uint64 = 1
+	searchFixtureTotalWithCorruptHits      uint64 = 3
+	searchFixtureTotalAfterCorruptOmission uint64 = 1
+	searchFixturePageTotal                 uint64 = 7
+)
+
 func TestBuildIndexMappingUsesDomainSearchPolicy(t *testing.T) {
 	mapping, err := buildIndexMapping()
 	if err != nil {
@@ -62,6 +75,9 @@ func TestDocumentCodecFieldMapUsesSchemaFields(t *testing.T) {
 		ContentField:        "custom_body",
 		ContentNoSpaceField: "custom_body_compact",
 		PathField:           "custom_source_path",
+		RootIDField:         "custom_root_id",
+		RelativePathField:   "custom_relative_path",
+		ServerPathField:     "custom_server_path",
 	}
 	codec := newDocumentCodec(schema)
 	doc := domain.IndexedDocument{
@@ -69,6 +85,9 @@ func TestDocumentCodecFieldMapUsesSchemaFields(t *testing.T) {
 		Content:        "홍 길 동 보고서",
 		ContentNoSpace: "홍길동보고서",
 		Path:           "/ignored/by/codec.hwp",
+		RootID:         "documents",
+		RelativePath:   "reports/quarterly.hwp",
+		ServerPath:     "/srv/docs/reports/quarterly.hwp",
 	}
 
 	got := codec.fieldMap(doc)
@@ -76,6 +95,9 @@ func TestDocumentCodecFieldMapUsesSchemaFields(t *testing.T) {
 		schema.ContentField:        doc.Content,
 		schema.ContentNoSpaceField: doc.ContentNoSpace,
 		schema.PathField:           string(doc.ID),
+		schema.RootIDField:         string(doc.RootID),
+		schema.RelativePathField:   string(doc.RelativePath),
+		schema.ServerPathField:     doc.ServerPath,
 	}
 
 	if !reflect.DeepEqual(got, want) {
@@ -88,6 +110,9 @@ func TestBuildSearchRequestQueryModeUsesQueryStringAndResultOptions(t *testing.T
 		ContentField:        "body_text",
 		ContentNoSpaceField: "body_text_compact",
 		PathField:           "source_path",
+		RootIDField:         "root_id",
+		RelativePathField:   "relative_path",
+		ServerPathField:     "server_path",
 	}
 	req := domain.SearchRequest{
 		Query: "홍길동",
@@ -103,7 +128,7 @@ func TestBuildSearchRequestQueryModeUsesQueryStringAndResultOptions(t *testing.T
 	if query.Query != req.Query {
 		t.Fatalf("Query.Query = %q, want %q", query.Query, req.Query)
 	}
-	if !reflect.DeepEqual(got.Fields, []string{schema.PathField, schema.ContentField}) {
+	if !reflect.DeepEqual(got.Fields, []string{schema.PathField, schema.RootIDField, schema.RelativePathField, schema.ServerPathField, schema.ContentField}) {
 		t.Fatalf("Fields = %#v, want schema path/content fields", got.Fields)
 	}
 	if got.Highlight == nil {
@@ -116,6 +141,8 @@ func TestBuildSearchRequestExactModeTargetsContentField(t *testing.T) {
 		ContentField:        "body_text",
 		ContentNoSpaceField: "body_text_compact",
 		PathField:           "source_path",
+		RootIDField:         "root_id",
+		RelativePathField:   "relative_path",
 	}
 	req := domain.SearchRequest{
 		Query: "홍길동 보고서",
@@ -141,6 +168,8 @@ func TestBuildSearchRequestIgnoreSpacesModeTargetsContentNoSpaceField(t *testing
 		ContentField:        "body_text",
 		ContentNoSpaceField: "body_text_compact",
 		PathField:           "source_path",
+		RootIDField:         "root_id",
+		RelativePathField:   "relative_path",
 	}
 	req := domain.SearchRequest{
 		Query: "홍길동",
@@ -195,7 +224,7 @@ func TestNewEngineCreatesIndependentIndexes(t *testing.T) {
 	}
 	defer second.Close()
 
-	doc := domain.NewIndexedDocument(domain.NewDocument("doc-1.hwp", "홍길동 문서"))
+	doc := logicalIndexedDocument("documents", "doc-1.hwp", "홍길동 문서")
 	if err := first.IndexDocument(doc); err != nil {
 		t.Fatalf("IndexDocument: %v", err)
 	}
@@ -244,7 +273,7 @@ func TestResetClearsIndexAndKeepsEngineUsable(t *testing.T) {
 	}
 	defer engine.Close()
 
-	first := domain.NewIndexedDocument(domain.NewDocument("before-reset.hwp", "초기 문서"))
+	first := logicalIndexedDocument("documents", "before-reset.hwp", "초기 문서")
 	if err := engine.IndexDocument(first); err != nil {
 		t.Fatalf("IndexDocument before reset: %v", err)
 	}
@@ -259,7 +288,7 @@ func TestResetClearsIndexAndKeepsEngineUsable(t *testing.T) {
 		t.Fatalf("Count after reset = %d, %v; want 0, nil", count, err)
 	}
 
-	second := domain.NewIndexedDocument(domain.NewDocument("after-reset.hwp", "재색인 문서"))
+	second := logicalIndexedDocument("documents", "after-reset.hwp", "재색인 문서")
 	if err := engine.IndexDocument(second); err != nil {
 		t.Fatalf("IndexDocument after reset: %v", err)
 	}
@@ -276,8 +305,8 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 	defer engine.Close()
 
 	for _, doc := range []domain.IndexedDocument{
-		domain.NewIndexedDocument(domain.NewDocument("plain.hwp", "홍길동 보고서")),
-		domain.NewIndexedDocument(domain.NewDocument("spaced.hwp", "홍 길 동 보고서")),
+		logicalIndexedDocument("documents", "plain.hwp", "홍길동 보고서"),
+		logicalIndexedDocument("documents", "spaced.hwp", "홍 길 동 보고서"),
 	} {
 		if err := engine.IndexDocument(doc); err != nil {
 			t.Fatalf("IndexDocument %s: %v", doc.ID, err)
@@ -295,7 +324,7 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 				Query: "홍길동",
 				Mode:  domain.SearchModeQuery,
 			},
-			wantIDs: []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+			wantIDs: []domain.DocumentID{"documents:plain.hwp", "documents:spaced.hwp"},
 		},
 		{
 			name: "exact phrase search",
@@ -303,7 +332,7 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 				Query: "홍길동",
 				Mode:  domain.SearchModeExact,
 			},
-			wantIDs: []domain.DocumentID{"plain.hwp"},
+			wantIDs: []domain.DocumentID{"documents:plain.hwp"},
 		},
 		{
 			name: "ignore spaces search",
@@ -311,7 +340,7 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 				Query: "홍길동",
 				Mode:  domain.SearchModeIgnoreSpaces,
 			},
-			wantIDs: []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+			wantIDs: []domain.DocumentID{"documents:plain.hwp", "documents:spaced.hwp"},
 		},
 	}
 
@@ -328,6 +357,121 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 	}
 }
 
+func TestSearchHydratesHitsFromStoredLogicalFields(t *testing.T) {
+	// given
+	engine, err := NewEngine(filepath.Join(t.TempDir(), "logical.bleve"))
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	defer engine.Close()
+
+	doc := searchFixtureDocument(t.TempDir())
+	if err := engine.IndexDocument(doc); err != nil {
+		t.Fatalf("IndexDocument: %v", err)
+	}
+
+	// when
+	got, err := engine.Search(domain.SearchRequest{Query: "홍길동", Mode: domain.SearchModeQuery})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+
+	// then
+	if len(got.Hits) != 1 {
+		t.Fatalf("len(Hits) = %d, want 1", len(got.Hits))
+	}
+	hit := got.Hits[0]
+	if hit.ID != doc.ID {
+		t.Fatalf("ID = %q, want %q", hit.ID, doc.ID)
+	}
+	if hit.RootID != doc.RootID {
+		t.Fatalf("RootID = %q, want %q", hit.RootID, doc.RootID)
+	}
+	if hit.RelativePath != doc.RelativePath {
+		t.Fatalf("RelativePath = %q, want %q", hit.RelativePath, doc.RelativePath)
+	}
+	if hit.Path != doc.ServerPath {
+		t.Fatalf("Path = %q, want hydrated server path", hit.Path)
+	}
+}
+
+func TestHitMapperOmitsHitsWithInvalidStoredLogicalFields(t *testing.T) {
+	// given
+	schema := domain.DefaultIndexSchema()
+	mapper := newHitMapper(schema)
+
+	result := &bleve.SearchResult{
+		Total: searchFixtureTotalWithCorruptHits,
+		Hits: search.DocumentMatchCollection{
+			{
+				ID: string(mustLogicalID(testRootID, "path.hwp")),
+				Fields: map[string]interface{}{
+					schema.RootIDField:       string(testRootID),
+					schema.RelativePathField: "path.hwp",
+					schema.ServerPathField:   "/srv/documents/path.hwp",
+				},
+			},
+			{
+				ID: string(mustLogicalID(testRootID, "missing.hwp")),
+				Fields: map[string]interface{}{
+					schema.RootIDField:       string(testRootID),
+					schema.RelativePathField: "missing.hwp",
+				},
+			},
+			{
+				ID: string(mustLogicalID(testRootID, "invalid.hwp")),
+				Fields: map[string]interface{}{
+					schema.RootIDField:       "Documents",
+					schema.RelativePathField: "../path.hwp",
+				},
+			},
+		},
+	}
+
+	// when
+	got := mapper.searchResult(result, domain.SearchRequest{Query: "path", Mode: domain.SearchModeQuery})
+
+	// then
+	if len(got.Hits) != 1 {
+		t.Fatalf("len(Hits) = %d, want 1", len(got.Hits))
+	}
+	if got.Total != searchFixtureTotalAfterCorruptOmission {
+		t.Fatalf("Total = %d, want total minus omitted corrupt hits", got.Total)
+	}
+	if got.Hits[0].ID != domain.DocumentID(mustLogicalID(testRootID, "path.hwp")) {
+		t.Fatalf("hit ID = %q, want valid hit only", got.Hits[0].ID)
+	}
+}
+
+func TestHitMapperKeepsLegacyPathHitsWithoutStoredLogicalFields(t *testing.T) {
+	// given
+	schema := domain.DefaultIndexSchema()
+	mapper := newHitMapper(schema)
+
+	result := &bleve.SearchResult{
+		Total: searchFixtureSingleTotal,
+		Hits: search.DocumentMatchCollection{
+			{
+				ID: testLegacyPath,
+				Fragments: search.FieldFragmentMap{
+					schema.ContentField: []string{"legacy fragment"},
+				},
+			},
+		},
+	}
+
+	// when
+	got := mapper.searchResult(result, domain.SearchRequest{Query: "legacy", Mode: domain.SearchModeQuery})
+
+	// then
+	if got.Total != searchFixtureSingleTotal || len(got.Hits) != int(searchFixtureSingleTotal) {
+		t.Fatalf("result = %+v, want one legacy hit", got)
+	}
+	if got.Hits[0].ID != testLegacyPath || got.Hits[0].RelativePath != testLegacyPath || got.Hits[0].Path != testLegacyPath {
+		t.Fatalf("hit = %+v, want legacy path identity", got.Hits[0])
+	}
+}
+
 func TestHitMapperPrefersNoSpaceFragmentForIgnoreSpacesSearch(t *testing.T) {
 	schema := domain.DefaultIndexSchema()
 	mapper := newHitMapper(schema)
@@ -337,6 +481,11 @@ func TestHitMapperPrefersNoSpaceFragmentForIgnoreSpacesSearch(t *testing.T) {
 		Hits: search.DocumentMatchCollection{
 			{
 				ID: "spaced.hwp",
+				Fields: map[string]interface{}{
+					schema.RootIDField:       "documents",
+					schema.RelativePathField: "spaced.hwp",
+					schema.ServerPathField:   testServerPath,
+				},
 				Fragments: search.FieldFragmentMap{
 					schema.ContentField:        []string{"홍 길 동 보고서"},
 					schema.ContentNoSpaceField: []string{"홍길동 보고서"},
@@ -363,20 +512,33 @@ func TestHitMapperMapsTotalIDsAndContentFragment(t *testing.T) {
 		ContentField:        "body",
 		ContentNoSpaceField: "body_compact",
 		PathField:           "source_path",
+		RootIDField:         "root_id",
+		RelativePathField:   "relative_path",
+		ServerPathField:     "server_path",
 	}
 	mapper := newHitMapper(schema)
 
 	result := &bleve.SearchResult{
-		Total: 7,
+		Total: searchFixturePageTotal,
 		Hits: search.DocumentMatchCollection{
 			{
 				ID: "first.hwp",
+				Fields: map[string]interface{}{
+					schema.RootIDField:       string(testRootID),
+					schema.RelativePathField: "first.hwp",
+					schema.ServerPathField:   testServerPath,
+				},
 				Fragments: search.FieldFragmentMap{
 					schema.ContentField: []string{"first fragment"},
 				},
 			},
 			{
 				ID: "second.pdf",
+				Fields: map[string]interface{}{
+					schema.RootIDField:       string(testRootID),
+					schema.RelativePathField: "second.pdf",
+					schema.ServerPathField:   testServerPath,
+				},
 				Fragments: search.FieldFragmentMap{
 					schema.ContentField: []string{"second fragment"},
 				},
@@ -389,8 +551,8 @@ func TestHitMapperMapsTotalIDsAndContentFragment(t *testing.T) {
 		Mode:  domain.SearchModeExact,
 	})
 
-	if got.Total != result.Total {
-		t.Fatalf("Total = %d, want %d", got.Total, result.Total)
+	if got.Total != searchFixturePageTotal {
+		t.Fatalf("Total = %d, want Bleve total when no hits are omitted", got.Total)
 	}
 	if len(got.Hits) != 2 {
 		t.Fatalf("len(Hits) = %d, want 2", len(got.Hits))
@@ -415,6 +577,11 @@ func TestHitMapperUsesEmptyFragmentWhenNoContentFragmentExists(t *testing.T) {
 		Hits: search.DocumentMatchCollection{
 			{
 				ID: "empty-fragment.hwp",
+				Fields: map[string]interface{}{
+					schema.RootIDField:       "documents",
+					schema.RelativePathField: "empty-fragment.hwp",
+					schema.ServerPathField:   testServerPath,
+				},
 				Fragments: search.FieldFragmentMap{
 					schema.PathField: []string{"/not/a/content/fragment.hwp"},
 				},
@@ -459,4 +626,42 @@ func hitIDs(hits []domain.SearchHit) []domain.DocumentID {
 		ids = append(ids, hit.ID)
 	}
 	return ids
+}
+
+func logicalIndexedDocument(rootID domain.RootID, relativePath domain.RelativePath, content string) domain.IndexedDocument {
+	id, err := domain.NewLogicalDocumentID(rootID, relativePath)
+	if err != nil {
+		panic(err)
+	}
+	serverPath := filepath.Join("/srv/docs", filepath.FromSlash(string(relativePath)))
+	return domain.IndexedDocument{
+		ID:             domain.DocumentID(id),
+		RootID:         rootID,
+		RelativePath:   relativePath,
+		Content:        content,
+		ContentNoSpace: domain.NormalizeNoSpaceContent(content),
+		Path:           serverPath,
+		ServerPath:     serverPath,
+	}
+}
+
+func searchFixtureDocument(root string) domain.IndexedDocument {
+	serverPath := filepath.Join(root, filepath.FromSlash(string(testRelativePath)))
+	return domain.IndexedDocument{
+		ID:             domain.DocumentID(mustLogicalID(testRootID, testRelativePath)),
+		RootID:         testRootID,
+		RelativePath:   testRelativePath,
+		Content:        testSearchText,
+		ContentNoSpace: domain.NormalizeNoSpaceContent(testSearchText),
+		Path:           "server path is diagnostic only",
+		ServerPath:     serverPath,
+	}
+}
+
+func mustLogicalID(rootID domain.RootID, relativePath domain.RelativePath) domain.LogicalDocumentID {
+	id, err := domain.NewLogicalDocumentID(rootID, relativePath)
+	if err != nil {
+		panic(err)
+	}
+	return id
 }

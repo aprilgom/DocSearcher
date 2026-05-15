@@ -175,7 +175,7 @@ func searchHandler(handlers Handlers) http.HandlerFunc {
 			}{
 				ID:       hit.ID,
 				Fragment: highlightFragment(hit.Fragment),
-				Path:     string(hit.ID),
+				Path:     hit.Path,
 			})
 		}
 	}
