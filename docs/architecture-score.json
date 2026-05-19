@@ -1,0 +1,313 @@
+{
+  "meta": {
+    "repo": "DocSearcher",
+    "path": "/Users/aprilgom/DocSearcher",
+    "scored_at": "2026-05-13T08:22:12.485443+00:00",
+    "branch": "refactor/search-engine-refactor",
+    "files_total": 72,
+    "source_files": 46,
+    "modules_total": 4,
+    "score_mode": "heuristic baseline + manual architecture review"
+  },
+  "total": 84,
+  "grade": "Architecture-Ready",
+  "grade_color": "green",
+  "categories": {
+    "A": {
+      "name": "Module Boundaries & Ownership",
+      "score": 19,
+      "max": 20,
+      "evidence": {
+        "modules": [
+          {
+            "path": "cmd",
+            "source_files": 2
+          },
+          {
+            "path": "goHwpTxt",
+            "source_files": 2
+          },
+          {
+            "path": "goHwpTxt/pkg",
+            "source_files": 8
+          },
+          {
+            "path": "internal",
+            "source_files": 34
+          }
+        ],
+        "generic_modules": [],
+        "large_files_600_plus": [
+          {
+            "path": "goHwpTxt/pkg/hwp3/hnc2unicode_tables.go",
+            "lines": 12728
+          }
+        ]
+      },
+      "findings": [
+        "goHwpTxt/pkg is a separate parser package boundary; hwp3 contains a very large generated table file: goHwpTxt/pkg/hwp3/hnc2unicode_tables.go"
+      ]
+    },
+    "B": {
+      "name": "Dependency Direction & Coupling",
+      "score": 20,
+      "max": 20,
+      "evidence": {
+        "import_edges": 9,
+        "deep_relative_score": 0,
+        "cross_layer_examples": [
+          {
+            "from": "internal/infra/search/codec.go",
+            "from_layer": "infra",
+            "target": "hwp-searcher/internal/domain",
+            "target_layer": "domain"
+          }
+        ],
+        "top_fan_out": [
+          [
+            "internal/infra/search/codec.go",
+            1
+          ],
+          [
+            "internal/infra/worker/worker.go",
+            1
+          ],
+          [
+            "internal/usecase/watchpaths.go",
+            1
+          ],
+          [
+            "internal/usecase/test_fakes_test.go",
+            1
+          ],
+          [
+            "internal/usecase/searching.go",
+            1
+          ],
+          [
+            "internal/usecase/stats.go",
+            1
+          ],
+          [
+            "internal/usecase/indexing.go",
+            1
+          ],
+          [
+            "internal/domain/document_test.go",
+            1
+          ],
+          [
+            "internal/domain/document_file_test.go",
+            1
+          ],
+          [
+            "cmd/app/main.go",
+            0
+          ]
+        ],
+        "top_fan_in": [
+          [
+            "hwp-searcher",
+            6
+          ],
+          [
+            "testing",
+            2
+          ],
+          [
+            "sync",
+            1
+          ]
+        ]
+      },
+      "findings": [
+        "infra adapters depend on internal/domain by design; no bidirectional app-layer imports observed"
+      ]
+    },
+    "C": {
+      "name": "API & Data Contract Clarity",
+      "score": 11,
+      "max": 15,
+      "evidence": {
+        "contract_files": [
+          "docs/contracts.md"
+        ],
+        "migration_files": 0
+      },
+      "findings": []
+    },
+    "D": {
+      "name": "Runtime & Deployment Shape",
+      "score": 5,
+      "max": 10,
+      "evidence": {
+        "runtime_files": []
+      },
+      "findings": [
+        "no obvious runtime/deployment files found"
+      ]
+    },
+    "E": {
+      "name": "Testability & Change Isolation",
+      "score": 12,
+      "max": 15,
+      "evidence": {
+        "source_files": 46,
+        "test_files": 16,
+        "test_ratio": 0.348
+      },
+      "findings": []
+    },
+    "F": {
+      "name": "Architecture Documentation & Decisions",
+      "score": 7,
+      "max": 10,
+      "evidence": {
+        "architecture_docs": [
+          "ARCHITECTURE.md"
+        ],
+        "adr_files": [],
+        "mermaid_docs": [
+          "ARCHITECTURE.md",
+          "AGENTS.md"
+        ]
+      },
+      "findings": []
+    },
+    "G": {
+      "name": "Evolution Risk & Complexity Hotspots",
+      "score": 10,
+      "max": 10,
+      "evidence": {
+        "large_files": [
+          {
+            "path": "goHwpTxt/pkg/hwp3/hnc2unicode_tables.go",
+            "lines": 12728
+          },
+          {
+            "path": "goHwpTxt/pkg/hwp3/hwpv3.go",
+            "lines": 535
+          },
+          {
+            "path": "internal/infra/search/engine_test.go",
+            "lines": 462
+          }
+        ],
+        "config_files": 7
+      },
+      "findings": [
+        "large files >=300 lines: 3"
+      ]
+    }
+  },
+  "insights": [
+    "Weakest category: Runtime & Deployment Shape (5/10)",
+    "Second weakest: Architecture Documentation & Decisions (7/10)",
+    "Manual review: goHwpTxt is a local external replacement, and goHwpTxt/pkg is a separate parser package boundary. The large generated table is contained inside the hwp3 parser package rather than the root facade."
+  ],
+  "actions": [
+    {
+      "title": "Add a lightweight release/runtime contract for app and Windows client",
+      "category": "D",
+      "effort": "S",
+      "effort_hours": 1.0,
+      "impact": "Makes port 8080, config.json, hwp-index.bleve, server.txt, and Windows-only client expectations explicit for packaging and support.",
+      "impact_score": 8,
+      "priority": 8.0
+    },
+    {
+      "title": "Capture two ADRs for parser package boundaries and indexing lifecycle",
+      "category": "F",
+      "effort": "S",
+      "effort_hours": 1.5,
+      "impact": "Preserves why goHwpTxt stays external-like, why goHwpTxt/pkg is a separate parser package boundary, and how watcher/index reset behavior should evolve.",
+      "impact_score": 7,
+      "priority": 4.67
+    },
+    {
+      "title": "Keep generated HWP table data isolated inside goHwpTxt/pkg/hwp3",
+      "category": "G",
+      "effort": "S",
+      "effort_hours": 0.75,
+      "impact": "Avoids accidental formatting churn in the 12,728-line table while keeping parser changes focused on adapter contracts.",
+      "impact_score": 6,
+      "priority": 8.0
+    }
+  ],
+  "extras": {
+    "large_files": [
+      {
+        "path": "goHwpTxt/pkg/hwp3/hnc2unicode_tables.go",
+        "lines": 12728
+      },
+      {
+        "path": "goHwpTxt/pkg/hwp3/hwpv3.go",
+        "lines": 535
+      },
+      {
+        "path": "internal/infra/search/engine_test.go",
+        "lines": 462
+      }
+    ],
+    "top_fan_out": [
+      [
+        "internal/infra/search/codec.go",
+        1
+      ],
+      [
+        "internal/infra/worker/worker.go",
+        1
+      ],
+      [
+        "internal/usecase/watchpaths.go",
+        1
+      ],
+      [
+        "internal/usecase/test_fakes_test.go",
+        1
+      ],
+      [
+        "internal/usecase/searching.go",
+        1
+      ],
+      [
+        "internal/usecase/stats.go",
+        1
+      ],
+      [
+        "internal/usecase/indexing.go",
+        1
+      ],
+      [
+        "internal/domain/document_test.go",
+        1
+      ],
+      [
+        "internal/domain/document_file_test.go",
+        1
+      ],
+      [
+        "cmd/app/main.go",
+        0
+      ]
+    ],
+    "top_fan_in": [
+      [
+        "hwp-searcher",
+        6
+      ],
+      [
+        "testing",
+        2
+      ],
+      [
+        "sync",
+        1
+      ]
+    ],
+    "contract_files": [
+      "docs/contracts.md"
+    ],
+    "runtime_files": []
+  }
+}

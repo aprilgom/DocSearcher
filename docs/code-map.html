@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code Cartography</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9e0ea;
+      --surface: #f7f9fc;
+      --panel: #ffffff;
+      --accent: #2563eb;
+      --risk: #b42318;
+      --warn: #b54708;
+      --ok: #067647;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--surface);
+      color: var(--ink);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      padding: 28px 32px 22px;
+    }
+    main { padding: 24px 32px 40px; }
+    h1, h2 { margin: 0; letter-spacing: 0; }
+    h1 { font-size: 28px; }
+    h2 { font-size: 18px; margin: 28px 0 12px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .meta { margin-top: 8px; color: var(--muted); }
+    .scoreline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: baseline;
+      margin-top: 20px;
+    }
+    .score {
+      font-size: 42px;
+      font-weight: 750;
+    }
+    .grade {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: #eef4ff;
+      color: #1849a9;
+      font-weight: 650;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 12px;
+    }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #edf2f7;
+      font-size: 12px;
+      color: #344054;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .num { text-align: right; white-space: nowrap; }
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+    .bar {
+      width: 120px;
+      height: 8px;
+      border-radius: 999px;
+      background: #e4e7ec;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    .bar span {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+    }
+    .pill {
+      display: inline-block;
+      min-width: 52px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 650;
+      background: #f2f4f7;
+    }
+    .pill.high { color: var(--risk); background: #fef3f2; }
+    .pill.medium { color: var(--warn); background: #fffaeb; }
+    .pill.low { color: var(--ok); background: #ecfdf3; }
+    @media (max-width: 720px) {
+      header, main { padding-left: 16px; padding-right: 16px; }
+      table { display: block; overflow-x: auto; }
+      .score { font-size: 34px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Code Cartography</h1>
+    <div class="meta">Target: <code>/Users/aprilgom/DocSearcher</code></div>
+    <div class="meta">Generated: 2026-05-13T08:27:10+00:00 | Mode: heuristic baseline + manual maintainability review</div>
+    <div class="scoreline">
+      <div class="score">83/100</div>
+      <div class="grade">Maintainability-Ready</div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><span>Files</span><strong>38</strong></div>
+<div class="metric"><span>Source</span><strong>22</strong></div>
+<div class="metric"><span>Tests</span><strong>16</strong></div>
+<div class="metric"><span>Source LOC</span><strong>1207</strong></div>
+<div class="metric"><span>Test Ratio</span><strong>0.727</strong></div>
+<div class="metric"><span>Test Proximity</span><strong>0.864</strong></div>
+<div class="metric"><span>Debt Markers</span><strong>1</strong></div>
+<div class="metric"><span>Duplicate Lines</span><strong>13</strong></div>
+    </div>
+  </header>
+  <main>
+    <h2>Category Scores</h2>
+    <table>
+      <thead>
+        <tr><th>Cat</th><th>Category</th><th>Score</th><th>Bar</th><th>Evidence / Gaps</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>A</strong></td><td>Local Complexity &amp; Readability<div class="muted">9 of 22 source files show complexity review signals.</div></td><td class="num">13/20</td><td><div class="bar"><span style="width:65%"></span></div></td><td>internal/infra/watcher/watcher.go: 120 LOC, nesting 5, branch density 0.18, long blocks 0; internal/infra/parser/parser.go: 41 LOC, nesting 2, branch density 0.12, long blocks 0; internal/infra/search/query.go: 24 LOC, nesting 2, branch density 0.12, long blocks 0</td></tr>
+<tr><td><strong>B</strong></td><td>Responsibility Focus &amp; File Shape<div class="muted">4 source files include mixed responsibility keyword signals.</div></td><td class="num">11/15</td><td><div class="bar"><span style="width:73%"></span></div></td><td>cmd/app/main.go: concerns: config, persistence, transport; internal/infra/config/config.go: concerns: async, config, persistence; internal/infra/search/mapping.go: concerns: auth, persistence, validation</td></tr>
+<tr><td><strong>C</strong></td><td>Change Coupling &amp; Dependency Surface<div class="muted">0 broad import files, 0 rough fan-in hotspots.</div></td><td class="num">15/15</td><td><div class="bar"><span style="width:100%"></span></div></td><td>internal/infra/parser/parser.go: imports 6, fan-in 2; internal/infra/search/mapping.go: imports 8, fan-in 0; internal/server/server.go: imports 7, fan-in 1</td></tr>
+<tr><td><strong>D</strong></td><td>Test Proximity &amp; Behavioral Safety<div class="muted">16 test files for 22 source files; source-test proximity 86%.</div></td><td class="num">14/15</td><td><div class="bar"><span style="width:93%"></span></div></td><td>internal/infra/config/config.go: high-risk file lacks nearby test; cmd/app/main.go: high-risk file lacks nearby test; cmd/client/main.go: high-risk file lacks nearby test</td></tr>
+<tr><td><strong>E</strong></td><td>Duplication &amp; Repetition Risk<div class="muted">13 repeated normalized source lines across 19 files.</div></td><td class="num">5/10</td><td><div class="bar"><span style="width:50%"></span></div></td><td>internal/usecase/index_runner.go: 5 duplicated normalized lines; cmd/client/main.go: 4 duplicated normalized lines; cmd/app/main.go: 3 duplicated normalized lines</td></tr>
+<tr><td><strong>F</strong></td><td>Error Handling &amp; Edge Case Visibility<div class="muted">0 of 9 side-effect files lack visible failure-handling markers.</div></td><td class="num">10/10</td><td><div class="bar"><span style="width:100%"></span></div></td><td>Framework-level error boundaries and language idioms require manual review.</td></tr>
+<tr><td><strong>G</strong></td><td>Codebase Hygiene &amp; Volatility<div class="muted">1 debt markers across 1 files; 0 extraction gaps.</div></td><td class="num">10/10</td><td><div class="bar"><span style="width:100%"></span></div></td><td>internal/infra/watcher/watcher.go: 1 debt markers</td></tr>
+<tr><td><strong>H</strong></td><td>Maintainability Context<div class="muted">9 maintainability context files found.</div></td><td class="num">5/5</td><td><div class="bar"><span style="width:100%"></span></div></td><td>ARCHITECTURE.md: context signal; README.md: context signal; docs/architecture-map.html: context signal</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Risk Hotspots</h2>
+    <table>
+      <thead>
+        <tr><th>Risk</th><th>Path</th><th>Reasons</th><th>Metrics</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">43.8</td><td><code>internal/infra/config/config.go</code></td><td>branch density 0.10; broad import surface (4); no nearby test by path/name convention; mixed responsibility signals: async, config, persistence</td><td>LOC 82, imports 4, fan-in 1, debt 0, nearby test False</td></tr>
+<tr><td class="num">43.1</td><td><code>internal/infra/search/store.go</code></td><td>moderate file size (135 LOC); branch density 0.16; broad import surface (5); duplicated normalized lines (3)</td><td>LOC 135, imports 5, fan-in 0, debt 0, nearby test True</td></tr>
+<tr><td class="num">42.3</td><td><code>internal/server/server.go</code></td><td>moderate file size (136 LOC); branch density 0.09; broad import surface (7); mixed responsibility signals: config, persistence, transport, ui</td><td>LOC 136, imports 7, fan-in 1, debt 0, nearby test True</td></tr>
+<tr><td class="num">40.5</td><td><code>cmd/app/main.go</code></td><td>broad import surface (7); no nearby test by path/name convention; mixed responsibility signals: config, persistence, transport; duplicated normalized lines (3)</td><td>LOC 53, imports 7, fan-in 0, debt 0, nearby test False</td></tr>
+<tr><td class="num">37.8</td><td><code>cmd/client/main.go</code></td><td>branch density 0.08; broad import surface (7); no nearby test by path/name convention; duplicated normalized lines (4)</td><td>LOC 36, imports 7, fan-in 0, debt 0, nearby test False</td></tr>
+<tr><td class="num">33.8</td><td><code>internal/infra/watcher/watcher.go</code></td><td>branch density 0.18; broad import surface (5); debt markers (1); duplicated normalized lines (2)</td><td>LOC 120, imports 5, fan-in 1, debt 1, nearby test True</td></tr>
+<tr><td class="num">27.0</td><td><code>internal/infra/search/mapping.go</code></td><td>broad import surface (8); mixed responsibility signals: auth, persistence, validation; duplicated normalized lines (3)</td><td>LOC 53, imports 8, fan-in 0, debt 0, nearby test True</td></tr>
+<tr><td class="num">26.0</td><td><code>internal/domain/document_file.go</code></td><td>branch density 0.31; duplicated normalized lines (1)</td><td>LOC 13, imports 2, fan-in 0, debt 0, nearby test True</td></tr>
+<tr><td class="num">23.2</td><td><code>internal/infra/parser/parser.go</code></td><td>branch density 0.12; broad import surface (6); duplicated normalized lines (2)</td><td>LOC 41, imports 6, fan-in 2, debt 0, nearby test True</td></tr>
+<tr><td class="num">23.1</td><td><code>internal/infra/scanner/scanner.go</code></td><td>branch density 0.18; duplicated normalized lines (1)</td><td>LOC 17, imports 3, fan-in 1, debt 0, nearby test True</td></tr>
+<tr><td class="num">22.8</td><td><code>goHwpTxt/hwp.go</code></td><td>branch density 0.14; broad import surface (6)</td><td>LOC 29, imports 6, fan-in 0, debt 0, nearby test True</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Risk Findings</h2>
+    <table>
+      <thead>
+        <tr><th>Severity</th><th>Finding</th><th>Evidence</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="pill medium">medium</span></td><td>Maintainability hotspot: internal/infra/config/config.go</td><td>branch density 0.10; broad import surface (4); no nearby test by path/name convention</td></tr>
+<tr><td><span class="pill medium">medium</span></td><td>Maintainability hotspot: internal/infra/search/store.go</td><td>moderate file size (135 LOC); branch density 0.16; broad import surface (5)</td></tr>
+<tr><td><span class="pill medium">medium</span></td><td>Maintainability hotspot: internal/server/server.go</td><td>moderate file size (136 LOC); branch density 0.09; broad import surface (7)</td></tr>
+<tr><td><span class="pill medium">medium</span></td><td>Maintainability hotspot: cmd/app/main.go</td><td>broad import surface (7); no nearby test by path/name convention; mixed responsibility signals: config, persistence, transport</td></tr>
+<tr><td><span class="pill medium">medium</span></td><td>Maintainability hotspot: cmd/client/main.go</td><td>branch density 0.08; broad import surface (7); no nearby test by path/name convention</td></tr>
+<tr><td><span class="pill high">high</span></td><td>Low category score: Duplication &amp; Repetition Risk</td><td>13 repeated normalized source lines across 19 files.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>ROI Actions</h2>
+    <table>
+      <thead>
+        <tr><th>Priority</th><th>Effort</th><th>Impact</th><th>Action</th><th>Evidence</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">95</td><td>M</td><td>H</td><td>Add or strengthen behavioral tests around internal/infra/config/config.go before refactoring.</td><td>Top hotspot risk should be made safer before structural edits.</td></tr>
+<tr><td class="num">88</td><td>M</td><td>H</td><td>Split mixed responsibilities in internal/infra/config/config.go along the visible concern boundary.</td><td>branch density 0.10; broad import surface (4); no nearby test by path/name convention</td></tr>
+<tr><td class="num">84</td><td>M</td><td>H</td><td>Break down the largest complex files into scan-sized units.</td><td>9 of 22 source files show complexity review signals.</td></tr>
+<tr><td class="num">82</td><td>S</td><td>M</td><td>Reduce dependency surface in internal/infra/config/config.go by moving composition or adapters outward.</td><td>branch density 0.10; broad import surface (4); no nearby test by path/name convention</td></tr>
+<tr><td class="num">72</td><td>M</td><td>M</td><td>Review repeated code lines and extract only confirmed semantic duplication.</td><td>13 repeated normalized source lines across 19 files.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Extraction Gaps</h2>
+    <table>
+      <thead>
+        <tr><th>Path</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="2">No extraction gaps.</td></tr>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
