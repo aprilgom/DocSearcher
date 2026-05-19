@@ -39,6 +39,15 @@ flowchart LR
   internal --> hwp[goHwpTxt external replace]
 ```
 
+## Go Style
+- Follow the canonical Google Go Style Guide: https://google.github.io/styleguide/go/guide
+- Prioritize clarity, simplicity, concision, maintainability, then consistency when choosing between valid Go implementations.
+- Run `gofmt` on touched Go files; use `MixedCaps` or `mixedCaps` names instead of snake_case for Go identifiers.
+- Prefer standard language constructs and standard library tools before adding new abstractions or dependencies.
+- Keep comments focused on why code exists or why a non-obvious choice is necessary; avoid comments that restate the code.
+- Do not make broad style-only rewrites just to chase guide differences. Apply the guide to new code and nearby touched code.
+- When the guide does not decide a style question, follow the local package/file style unless doing so would spread an existing deviation or make the code harder to read.
+
 ## Git Conventions
 - Use Conventional Commits for commit messages: `<type>(<scope>): <subject>`.
 - Use the same `type` and `scope` in branch names: `<type>/<scope>-<short-subject>`.
