@@ -55,10 +55,12 @@ func (f fakeStats) Current() (domain.Stats, error) {
 	return domain.Stats{DocumentCount: 2, WatchedPathCount: 1, Indexing: true}, nil
 }
 
-type fakeResetter struct{}
+type fakeResetter struct {
+	err error
+}
 
-func (fakeResetter) ResetIndex() error {
-	return nil
+func (f fakeResetter) ResetIndex() error {
+	return f.err
 }
 
 func TestNewMuxUsesInjectedHandlers(t *testing.T) {
@@ -167,69 +169,189 @@ func TestConfigHandlerEscapesWatchedPathHTML(t *testing.T) {
 	}
 }
 
-func TestWatchHandlerReportsAddError(t *testing.T) {
-	mux := NewMux(Handlers{
-		Searcher:   fakeSearcher{},
-		WatchPaths: fakeWatchPaths{addErr: errors.New("add failed <unsafe>")},
-		Stats:      fakeStats{},
-		Resetter:   fakeResetter{},
-	})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/watch", strings.NewReader("path=docs"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rec := httptest.NewRecorder()
-
-	mux.ServeHTTP(rec, req)
-
-	body := rec.Body.String()
-	if strings.Contains(body, "<unsafe>") {
-		t.Fatalf("watch add error is not escaped: %q", body)
+func TestHandlersReportEscapedErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		handlers Handlers
+		method   string
+		target   string
+		body     string
+		want     string
+	}{
+		{
+			name: "watch_add",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{},
+				WatchPaths: fakeWatchPaths{addErr: errors.New("add failed <unsafe>")},
+				Stats:      fakeStats{},
+				Resetter:   fakeResetter{},
+			},
+			method: http.MethodPost,
+			target: "/api/watch",
+			body:   "path=docs",
+			want:   "Add failed: add failed &lt;unsafe&gt;",
+		},
+		{
+			name: "watch_remove",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{},
+				WatchPaths: fakeWatchPaths{removeErr: errors.New("remove failed <unsafe>")},
+				Stats:      fakeStats{},
+				Resetter:   fakeResetter{},
+			},
+			method: http.MethodDelete,
+			target: "/api/watch?path=docs",
+			want:   "Remove failed: remove failed &lt;unsafe&gt;",
+		},
+		{
+			name: "stats_current",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{},
+				WatchPaths: fakeWatchPaths{},
+				Stats:      fakeStats{err: errors.New("stats failed <unsafe>")},
+				Resetter:   fakeResetter{},
+			},
+			method: http.MethodGet,
+			target: "/api/stats",
+			want:   "Stats failed: stats failed &lt;unsafe&gt;",
+		},
+		{
+			name: "search",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{err: errors.New("search failed <unsafe>")},
+				WatchPaths: fakeWatchPaths{},
+				Stats:      fakeStats{},
+				Resetter:   fakeResetter{},
+			},
+			method: http.MethodGet,
+			target: "/api/search?q=test",
+			want:   "Error: search failed &lt;unsafe&gt;",
+		},
+		{
+			name: "reset_error",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{},
+				WatchPaths: fakeWatchPaths{},
+				Stats:      fakeStats{},
+				Resetter:   fakeResetter{err: errors.New("reset failed <unsafe>")},
+			},
+			method: http.MethodPost,
+			target: "/api/index/reset",
+			want:   "Reset failed: reset failed &lt;unsafe&gt;",
+		},
 	}
-	if !strings.Contains(body, "Add failed: add failed &lt;unsafe&gt;") {
-		t.Fatalf("watch add error not reported, got %q", body)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var body *strings.Reader
+			if test.body != "" {
+				body = strings.NewReader(test.body)
+			} else {
+				body = strings.NewReader("")
+			}
+
+			mux := NewMux(test.handlers)
+			req := httptest.NewRequest(test.method, test.target, body)
+			if test.method == http.MethodPost && test.target == "/api/watch" {
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			}
+			rec := httptest.NewRecorder()
+
+			mux.ServeHTTP(rec, req)
+
+			got := rec.Body.String()
+			if strings.Contains(got, "<unsafe>") {
+				t.Fatalf("error is not escaped: %q", got)
+			}
+			if !strings.Contains(got, test.want) {
+				t.Fatalf("error not reported, got %q, want substring %q", got, test.want)
+			}
+		})
 	}
 }
 
-func TestWatchHandlerReportsRemoveError(t *testing.T) {
-	mux := NewMux(Handlers{
-		Searcher:   fakeSearcher{},
-		WatchPaths: fakeWatchPaths{removeErr: errors.New("remove failed <unsafe>")},
-		Stats:      fakeStats{},
-		Resetter:   fakeResetter{},
-	})
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/watch?path=docs", nil)
-	rec := httptest.NewRecorder()
-
-	mux.ServeHTTP(rec, req)
-
-	body := rec.Body.String()
-	if strings.Contains(body, "<unsafe>") {
-		t.Fatalf("watch remove error is not escaped: %q", body)
+func TestHandlersRenderStatusMessages(t *testing.T) {
+	tests := []struct {
+		name      string
+		handlers  Handlers
+		method    string
+		target    string
+		want      []string
+		wantEmpty bool
+	}{
+		{
+			name: "search_no_results",
+			handlers: Handlers{
+				Searcher: fakeSearcher{result: domain.SearchResult{
+					Total: 0,
+					Hits:  nil,
+				}},
+				WatchPaths: fakeWatchPaths{},
+				Stats:      fakeStats{},
+				Resetter:   fakeResetter{},
+			},
+			method: http.MethodGet,
+			target: "/api/search?q=missing",
+			want:   []string{"0 hits", "No results found"},
+		},
+		{
+			name: "stats_idle",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{},
+				WatchPaths: fakeWatchPaths{},
+				Stats:      fakeStats{stats: domain.Stats{DocumentCount: 3, WatchedPathCount: 2, Indexing: false}},
+				Resetter:   fakeResetter{},
+			},
+			method: http.MethodGet,
+			target: "/api/stats",
+			want:   []string{"3 docs | 2 watched | Idle"},
+		},
+		{
+			name: "reset_get_empty",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{},
+				WatchPaths: fakeWatchPaths{},
+				Stats:      fakeStats{},
+				Resetter:   fakeResetter{err: errors.New("should not be called")},
+			},
+			method:    http.MethodGet,
+			target:    "/api/index/reset",
+			wantEmpty: true,
+		},
+		{
+			name: "reset_success",
+			handlers: Handlers{
+				Searcher:   fakeSearcher{},
+				WatchPaths: fakeWatchPaths{},
+				Stats:      fakeStats{},
+				Resetter:   fakeResetter{},
+			},
+			method: http.MethodPost,
+			target: "/api/index/reset",
+			want:   []string{"Index reset! Re-indexing started..."},
+		},
 	}
-	if !strings.Contains(body, "Remove failed: remove failed &lt;unsafe&gt;") {
-		t.Fatalf("watch remove error not reported, got %q", body)
-	}
-}
 
-func TestStatsHandlerReportsCurrentError(t *testing.T) {
-	mux := NewMux(Handlers{
-		Searcher:   fakeSearcher{},
-		WatchPaths: fakeWatchPaths{},
-		Stats:      fakeStats{err: errors.New("stats failed <unsafe>")},
-		Resetter:   fakeResetter{},
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mux := NewMux(test.handlers)
+			req := httptest.NewRequest(test.method, test.target, nil)
+			rec := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/stats", nil)
-	rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
 
-	mux.ServeHTTP(rec, req)
-
-	body := rec.Body.String()
-	if strings.Contains(body, "<unsafe>") {
-		t.Fatalf("stats error is not escaped: %q", body)
-	}
-	if !strings.Contains(body, "Stats failed: stats failed &lt;unsafe&gt;") {
-		t.Fatalf("stats error not reported, got %q", body)
+			got := rec.Body.String()
+			if test.wantEmpty {
+				if got != "" {
+					t.Fatalf("response body = %q, want empty", got)
+				}
+				return
+			}
+			for _, want := range test.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("response body = %q, want substring %q", got, want)
+				}
+			}
+		})
 	}
 }

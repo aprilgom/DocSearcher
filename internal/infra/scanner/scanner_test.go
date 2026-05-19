@@ -1,8 +1,10 @@
 package scanner
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"testing"
 )
@@ -28,13 +30,22 @@ func TestWalkVisitsSupportedDocuments(t *testing.T) {
 	sort.Strings(got)
 	sort.Strings(want)
 
-	if len(got) != len(want) {
-		t.Fatalf("visited paths = %v, want %v", got, want)
+	if !slices.Equal(got, want) {
+		t.Fatalf("Walk(%q) visited paths = %v, want %v", root, got, want)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("visited paths = %v, want %v", got, want)
-		}
+}
+
+func TestWalkReturnsVisitError(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, root, "report.hwp")
+	wantErr := errors.New("stop walking")
+
+	err := Walk(root, func(path string) error {
+		return wantErr
+	})
+
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("Walk error = %v, want %v", err, wantErr)
 	}
 }
 
