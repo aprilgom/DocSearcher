@@ -3,9 +3,12 @@ package usecase
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"sort"
 	"sync"
 	"testing"
+	"time"
 )
 
 type recordingFileProcessor struct {
@@ -46,13 +49,8 @@ func TestIndexRunnerRunScansSupportedDocuments(t *testing.T) {
 	sort.Strings(got)
 	sort.Strings(want)
 
-	if len(got) != len(want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("processed paths = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("processed paths = %v, want %v", got, want)
-		}
 	}
 }
 
@@ -61,6 +59,54 @@ func TestIndexRunnerReportsRunningState(t *testing.T) {
 
 	if runner.IsIndexing() {
 		t.Fatal("IsIndexing() = true, want false")
+	}
+}
+
+func TestIndexRunnerStartPreventsDuplicateRunWhileIndexing(t *testing.T) {
+	firstRoot := t.TempDir()
+	secondRoot := t.TempDir()
+	mustWriteIndexRunnerFile(t, firstRoot, "first.hwp")
+	mustWriteIndexRunnerFile(t, secondRoot, "second.hwp")
+	processor := newBlockingFileProcessor()
+	runner := NewIndexRunner(processor.Process)
+
+	runner.Start(firstRoot)
+	firstPath := processor.waitStarted(t)
+	if filepath.Base(firstPath) != "first.hwp" {
+		t.Fatalf("first processed path = %q, want first.hwp", firstPath)
+	}
+	if !runner.IsIndexing() {
+		t.Fatal("IsIndexing() = false while first run is blocked, want true")
+	}
+
+	runner.Start(secondRoot)
+	processor.release()
+	waitUntilIndexRunnerIdle(t, runner)
+
+	got := relativeIndexRunnerPaths(t, filepath.Dir(firstRoot), processor.Processed())
+	want := []string{filepath.ToSlash(filepath.Join(filepath.Base(firstRoot), "first.hwp"))}
+	if !slices.Equal(got, want) {
+		t.Fatalf("processed paths = %v, want %v", got, want)
+	}
+}
+
+func TestIndexRunnerStartClearsRunningStateAfterCompletion(t *testing.T) {
+	root := t.TempDir()
+	mustWriteIndexRunnerFile(t, root, "report.pdf")
+	processor := newBlockingFileProcessor()
+	runner := NewIndexRunner(processor.Process)
+
+	runner.Start(root)
+	processor.waitStarted(t)
+	if !runner.IsIndexing() {
+		t.Fatal("IsIndexing() = false while run is blocked, want true")
+	}
+
+	processor.release()
+	waitUntilIndexRunnerIdle(t, runner)
+
+	if runner.IsIndexing() {
+		t.Fatal("IsIndexing() = true after completion, want false")
 	}
 }
 
@@ -86,4 +132,52 @@ func relativeIndexRunnerPaths(t *testing.T, root string, paths []string) []strin
 		relPaths = append(relPaths, filepath.ToSlash(rel))
 	}
 	return relPaths
+}
+
+type blockingFileProcessor struct {
+	recordingFileProcessor
+	started     chan string
+	releaseOnce sync.Once
+	releaseCh   chan struct{}
+}
+
+func newBlockingFileProcessor() *blockingFileProcessor {
+	return &blockingFileProcessor{
+		started:   make(chan string, 1),
+		releaseCh: make(chan struct{}),
+	}
+}
+
+func (p *blockingFileProcessor) Process(path string) error {
+	p.started <- path
+	<-p.releaseCh
+	return p.recordingFileProcessor.Process(path)
+}
+
+func (p *blockingFileProcessor) waitStarted(t *testing.T) string {
+	t.Helper()
+	select {
+	case path := <-p.started:
+		return path
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for processor to start")
+		return ""
+	}
+}
+
+func (p *blockingFileProcessor) release() {
+	p.releaseOnce.Do(func() {
+		close(p.releaseCh)
+	})
+}
+
+func waitUntilIndexRunnerIdle(t *testing.T, runner *IndexRunner) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for runner.IsIndexing() {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for runner to become idle")
+		}
+		runtime.Gosched()
+	}
 }
