@@ -2,6 +2,7 @@ package goHwpTxt
 
 import (
 	"archive/zip"
+	"encoding/xml"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,25 @@ func TestExtractTextExtractsTextFromSyntheticHWPX(t *testing.T) {
 	}
 	if strings.Contains(text, "무시할 문장") {
 		t.Fatalf("ExtractText(%q) text = %q, want Preview XML to be ignored", path, text)
+	}
+}
+
+func TestExtractTextPreservesEscapedXMLTextFromSyntheticHWPX(t *testing.T) {
+	// Given
+	want := `A&B <테스트> "따옴표" '작은따옴표'`
+	path := writeSyntheticHWPX(t, t.TempDir(), "escaped.hwpx", []hwpxSection{
+		{name: "Contents/section0.xml", text: want},
+	})
+
+	// When
+	text, err := ExtractText(path)
+
+	// Then
+	if err != nil {
+		t.Fatalf("ExtractText(%q) returned error for escaped XML text fixture: %v", path, err)
+	}
+	if !strings.Contains(text, want) {
+		t.Fatalf("ExtractText(%q) text = %q, want it to contain %q", path, text, want)
 	}
 }
 
@@ -64,11 +84,20 @@ func writeSyntheticHWPX(t *testing.T, dir, name string, sections []hwpxSection) 
 		if err != nil {
 			t.Fatalf("Create section %q in synthetic HWPX returned error: %v", section.name, err)
 		}
-		xml := `<?xml version="1.0" encoding="UTF-8"?><hp:section xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph"><hp:p><hp:t>` + section.text + `</hp:t></hp:p></hp:section>`
-		if _, err := file.Write([]byte(xml)); err != nil {
+		content := `<?xml version="1.0" encoding="UTF-8"?><hp:section xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph"><hp:p><hp:t>` + escapeXMLText(t, section.text) + `</hp:t></hp:p></hp:section>`
+		if _, err := file.Write([]byte(content)); err != nil {
 			t.Fatalf("Write section %q in synthetic HWPX returned error: %v", section.name, err)
 		}
 	}
 
 	return path
+}
+
+func escapeXMLText(t *testing.T, text string) string {
+	t.Helper()
+	var builder strings.Builder
+	if err := xml.EscapeText(&builder, []byte(text)); err != nil {
+		t.Fatalf("EscapeText(%q) returned error: %v", text, err)
+	}
+	return builder.String()
 }
