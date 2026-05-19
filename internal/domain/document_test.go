@@ -15,11 +15,47 @@ func TestNewIndexedDocumentNormalizesSearchText(t *testing.T) {
 	}
 }
 
-func TestSearchModeFromFlagsPrefersIgnoreSpaces(t *testing.T) {
-	mode := SearchModeFromFlags(true, true)
+func TestSearchModeFromFlags(t *testing.T) {
+	tests := []struct {
+		name         string
+		exact        bool
+		ignoreSpaces bool
+		want         SearchMode
+	}{
+		{
+			name:         "default_query",
+			exact:        false,
+			ignoreSpaces: false,
+			want:         SearchModeQuery,
+		},
+		{
+			name:         "exact",
+			exact:        true,
+			ignoreSpaces: false,
+			want:         SearchModeExact,
+		},
+		{
+			name:         "ignore_spaces",
+			exact:        false,
+			ignoreSpaces: true,
+			want:         SearchModeIgnoreSpaces,
+		},
+		{
+			name:         "ignore_spaces_precedence",
+			exact:        true,
+			ignoreSpaces: true,
+			want:         SearchModeIgnoreSpaces,
+		},
+	}
 
-	if mode != SearchModeIgnoreSpaces {
-		t.Fatalf("SearchModeFromFlags(true, true) = %v, want %v", mode, SearchModeIgnoreSpaces)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mode := SearchModeFromFlags(tt.exact, tt.ignoreSpaces)
+
+			if mode != tt.want {
+				t.Fatalf("SearchModeFromFlags(%v, %v) = %v, want %v", tt.exact, tt.ignoreSpaces, mode, tt.want)
+			}
+		})
 	}
 }
 
@@ -54,20 +90,49 @@ func TestIndexSchemaDefinesSearchFields(t *testing.T) {
 	}
 }
 
-func TestSearchRequestValidateRejectsQueriesShorterThanPolicy(t *testing.T) {
-	req := SearchRequest{Query: "김", Mode: SearchModeQuery}
-
-	err := req.Validate(PersonNameSearchPolicy())
-
-	if err == nil {
-		t.Fatal("Validate returned nil, want error")
+func TestSearchRequestValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		query   string
+		wantErr bool
+	}{
+		{
+			name:    "shorter_than_policy",
+			query:   "김",
+			wantErr: true,
+		},
+		{
+			name:    "trimmed_shorter_than_policy",
+			query:   " 김 ",
+			wantErr: true,
+		},
+		{
+			name:    "policy_length",
+			query:   "김철",
+			wantErr: false,
+		},
+		{
+			name:    "longer_than_policy",
+			query:   "김철수",
+			wantErr: false,
+		},
 	}
-}
 
-func TestSearchRequestValidateAllowsPolicyLengthQuery(t *testing.T) {
-	req := SearchRequest{Query: "김철", Mode: SearchModeQuery}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := SearchRequest{Query: tt.query, Mode: SearchModeQuery}
 
-	if err := req.Validate(PersonNameSearchPolicy()); err != nil {
-		t.Fatalf("Validate returned error: %v", err)
+			err := req.Validate(PersonNameSearchPolicy())
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Validate returned nil, want error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Validate returned error: %v", err)
+			}
+		})
 	}
 }

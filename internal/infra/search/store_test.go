@@ -66,20 +66,47 @@ func TestIndexStoreClosedOperationsReturnClosedErrorsAndCloseIsIdempotent(t *tes
 	codec := newDocumentCodec(schema)
 	doc := domain.NewIndexedDocument(domain.NewDocument("closed.hwp", "닫힌 인덱스 문서"))
 
-	if _, err := store.count(); !isIndexClosedError(err) {
-		t.Fatalf("count error = %v, want index is closed", err)
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{
+			name: "count",
+			run: func() error {
+				_, err := store.count()
+				return err
+			},
+		},
+		{
+			name: "search",
+			run: func() error {
+				_, err := store.search(buildSearchRequest(domain.SearchRequest{
+					Query: "닫힌",
+					Mode:  domain.SearchModeQuery,
+				}, schema))
+				return err
+			},
+		},
+		{
+			name: "indexDocument",
+			run: func() error {
+				return store.indexDocument(string(doc.ID), codec.fieldMap(doc))
+			},
+		},
+		{
+			name: "deleteDocument",
+			run: func() error {
+				return store.deleteDocument(string(doc.ID))
+			},
+		},
 	}
-	if _, err := store.search(buildSearchRequest(domain.SearchRequest{
-		Query: "닫힌",
-		Mode:  domain.SearchModeQuery,
-	}, schema)); !isIndexClosedError(err) {
-		t.Fatalf("search error = %v, want index is closed", err)
-	}
-	if err := store.indexDocument(string(doc.ID), codec.fieldMap(doc)); !isIndexClosedError(err) {
-		t.Fatalf("indexDocument error = %v, want index is closed", err)
-	}
-	if err := store.deleteDocument(string(doc.ID)); !isIndexClosedError(err) {
-		t.Fatalf("deleteDocument error = %v, want index is closed", err)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.run(); !isIndexClosedError(err) {
+				t.Fatalf("error = %v, want index is closed", err)
+			}
+		})
 	}
 }
 

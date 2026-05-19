@@ -1,0 +1,548 @@
+{
+  "schema_version": "1.0",
+  "target": "/Users/aprilgom/DocSearcher",
+  "generated_at": "2026-05-13T08:27:10+00:00",
+  "score": 83,
+  "grade": "Maintainability-Ready",
+  "mode": "heuristic baseline + manual maintainability review",
+  "categories": [
+    {
+      "id": "A",
+      "name": "Local Complexity & Readability",
+      "points": 20,
+      "score": 13,
+      "rationale": "9 of 22 source files show complexity review signals.",
+      "evidence": [
+        {
+          "path": "internal/infra/watcher/watcher.go",
+          "detail": "120 LOC, nesting 5, branch density 0.18, long blocks 0"
+        },
+        {
+          "path": "internal/infra/parser/parser.go",
+          "detail": "41 LOC, nesting 2, branch density 0.12, long blocks 0"
+        },
+        {
+          "path": "internal/infra/search/query.go",
+          "detail": "24 LOC, nesting 2, branch density 0.12, long blocks 0"
+        },
+        {
+          "path": "internal/infra/search/store.go",
+          "detail": "135 LOC, nesting 2, branch density 0.16, long blocks 1"
+        },
+        {
+          "path": "internal/infra/worker/worker.go",
+          "detail": "23 LOC, nesting 4, branch density 0.13, long blocks 0"
+        },
+        {
+          "path": "internal/infra/scanner/scanner.go",
+          "detail": "17 LOC, nesting 3, branch density 0.18, long blocks 0"
+        }
+      ],
+      "gaps": [
+        "Scanner estimates complexity from size, branch tokens, nesting, and block starts; confirm with language-aware review for critical files."
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Responsibility Focus & File Shape",
+      "points": 15,
+      "score": 11,
+      "rationale": "4 source files include mixed responsibility keyword signals.",
+      "evidence": [
+        {
+          "path": "cmd/app/main.go",
+          "detail": "concerns: config, persistence, transport"
+        },
+        {
+          "path": "internal/infra/config/config.go",
+          "detail": "concerns: async, config, persistence"
+        },
+        {
+          "path": "internal/infra/search/mapping.go",
+          "detail": "concerns: auth, persistence, validation"
+        },
+        {
+          "path": "internal/server/server.go",
+          "detail": "concerns: config, persistence, transport, ui"
+        }
+      ],
+      "gaps": [
+        "Concern keywords are proxies; composition roots may be legitimate mixed-responsibility files."
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Change Coupling & Dependency Surface",
+      "points": 15,
+      "score": 15,
+      "rationale": "0 broad import files, 0 rough fan-in hotspots.",
+      "evidence": [
+        {
+          "path": "internal/infra/parser/parser.go",
+          "detail": "imports 6, fan-in 2"
+        },
+        {
+          "path": "internal/infra/search/mapping.go",
+          "detail": "imports 8, fan-in 0"
+        },
+        {
+          "path": "internal/server/server.go",
+          "detail": "imports 7, fan-in 1"
+        },
+        {
+          "path": "cmd/app/main.go",
+          "detail": "imports 7, fan-in 0"
+        },
+        {
+          "path": "cmd/client/main.go",
+          "detail": "imports 7, fan-in 0"
+        },
+        {
+          "path": "internal/infra/watcher/watcher.go",
+          "detail": "imports 5, fan-in 1"
+        }
+      ],
+      "gaps": [
+        "Import parsing is heuristic and rough fan-in is based on module name matching."
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Test Proximity & Behavioral Safety",
+      "points": 15,
+      "score": 14,
+      "rationale": "16 test files for 22 source files; source-test proximity 86%.",
+      "evidence": [
+        {
+          "path": "internal/infra/config/config.go",
+          "detail": "high-risk file lacks nearby test"
+        },
+        {
+          "path": "cmd/app/main.go",
+          "detail": "high-risk file lacks nearby test"
+        },
+        {
+          "path": "cmd/client/main.go",
+          "detail": "high-risk file lacks nearby test"
+        }
+      ],
+      "gaps": [
+        "Path/name proximity does not prove test quality; inspect assertions around top hotspots."
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Duplication & Repetition Risk",
+      "points": 10,
+      "score": 5,
+      "rationale": "13 repeated normalized source lines across 19 files.",
+      "evidence": [
+        {
+          "path": "internal/usecase/index_runner.go",
+          "detail": "5 duplicated normalized lines"
+        },
+        {
+          "path": "cmd/client/main.go",
+          "detail": "4 duplicated normalized lines"
+        },
+        {
+          "path": "cmd/app/main.go",
+          "detail": "3 duplicated normalized lines"
+        },
+        {
+          "path": "internal/infra/search/store.go",
+          "detail": "3 duplicated normalized lines"
+        },
+        {
+          "path": "internal/infra/search/engine.go",
+          "detail": "3 duplicated normalized lines"
+        },
+        {
+          "path": "internal/infra/search/mapping.go",
+          "detail": "3 duplicated normalized lines"
+        }
+      ],
+      "gaps": [
+        "Line repetition is a weak proxy; validate semantic duplication before extraction."
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Error Handling & Edge Case Visibility",
+      "points": 10,
+      "score": 10,
+      "rationale": "0 of 9 side-effect files lack visible failure-handling markers.",
+      "evidence": [],
+      "gaps": [
+        "Framework-level error boundaries and language idioms require manual review."
+      ]
+    },
+    {
+      "id": "G",
+      "name": "Codebase Hygiene & Volatility",
+      "points": 10,
+      "score": 10,
+      "rationale": "1 debt markers across 1 files; 0 extraction gaps.",
+      "evidence": [
+        {
+          "path": "internal/infra/watcher/watcher.go",
+          "detail": "1 debt markers"
+        }
+      ],
+      "gaps": []
+    },
+    {
+      "id": "H",
+      "name": "Maintainability Context",
+      "points": 5,
+      "score": 5,
+      "rationale": "9 maintainability context files found.",
+      "evidence": [
+        {
+          "path": "ARCHITECTURE.md",
+          "detail": "context signal"
+        },
+        {
+          "path": "README.md",
+          "detail": "context signal"
+        },
+        {
+          "path": "docs/architecture-map.html",
+          "detail": "context signal"
+        },
+        {
+          "path": "docs/architecture-score.json",
+          "detail": "context signal"
+        },
+        {
+          "path": "docs/code-map.html",
+          "detail": "context signal"
+        },
+        {
+          "path": "docs/code-score.json",
+          "detail": "context signal"
+        }
+      ],
+      "gaps": [
+        "Read context files manually before granting full credit for usefulness."
+      ]
+    }
+  ],
+  "risks": [
+    {
+      "severity": "medium",
+      "title": "Maintainability hotspot: internal/infra/config/config.go",
+      "evidence": "branch density 0.10; broad import surface (4); no nearby test by path/name convention"
+    },
+    {
+      "severity": "medium",
+      "title": "Maintainability hotspot: internal/infra/search/store.go",
+      "evidence": "moderate file size (135 LOC); branch density 0.16; broad import surface (5)"
+    },
+    {
+      "severity": "medium",
+      "title": "Maintainability hotspot: internal/server/server.go",
+      "evidence": "moderate file size (136 LOC); branch density 0.09; broad import surface (7)"
+    },
+    {
+      "severity": "medium",
+      "title": "Maintainability hotspot: cmd/app/main.go",
+      "evidence": "broad import surface (7); no nearby test by path/name convention; mixed responsibility signals: config, persistence, transport"
+    },
+    {
+      "severity": "medium",
+      "title": "Maintainability hotspot: cmd/client/main.go",
+      "evidence": "branch density 0.08; broad import surface (7); no nearby test by path/name convention"
+    },
+    {
+      "severity": "high",
+      "title": "Low category score: Duplication & Repetition Risk",
+      "evidence": "13 repeated normalized source lines across 19 files."
+    }
+  ],
+  "actions": [
+    {
+      "priority": 95,
+      "effort": "M",
+      "impact": "H",
+      "action": "Add or strengthen behavioral tests around internal/infra/config/config.go before refactoring.",
+      "evidence": "Top hotspot risk should be made safer before structural edits."
+    },
+    {
+      "priority": 88,
+      "effort": "M",
+      "impact": "H",
+      "action": "Split mixed responsibilities in internal/infra/config/config.go along the visible concern boundary.",
+      "evidence": "branch density 0.10; broad import surface (4); no nearby test by path/name convention"
+    },
+    {
+      "priority": 84,
+      "effort": "M",
+      "impact": "H",
+      "action": "Break down the largest complex files into scan-sized units.",
+      "evidence": "9 of 22 source files show complexity review signals."
+    },
+    {
+      "priority": 82,
+      "effort": "S",
+      "impact": "M",
+      "action": "Reduce dependency surface in internal/infra/config/config.go by moving composition or adapters outward.",
+      "evidence": "branch density 0.10; broad import surface (4); no nearby test by path/name convention"
+    },
+    {
+      "priority": 72,
+      "effort": "M",
+      "impact": "M",
+      "action": "Review repeated code lines and extract only confirmed semantic duplication.",
+      "evidence": "13 repeated normalized source lines across 19 files."
+    }
+  ],
+  "hotspots": [
+    {
+      "path": "internal/infra/config/config.go",
+      "risk_score": 43.8,
+      "reasons": [
+        "branch density 0.10",
+        "broad import surface (4)",
+        "no nearby test by path/name convention",
+        "mixed responsibility signals: async, config, persistence",
+        "duplicated normalized lines (1)"
+      ],
+      "metrics": {
+        "loc": 82,
+        "imports": 4,
+        "fan_in": 1,
+        "branch_density": 0.098,
+        "nesting": 3,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 1,
+        "nearby_test": false
+      }
+    },
+    {
+      "path": "internal/infra/search/store.go",
+      "risk_score": 43.1,
+      "reasons": [
+        "moderate file size (135 LOC)",
+        "branch density 0.16",
+        "broad import surface (5)",
+        "duplicated normalized lines (3)",
+        "long block candidates (1)"
+      ],
+      "metrics": {
+        "loc": 135,
+        "imports": 5,
+        "fan_in": 0,
+        "branch_density": 0.156,
+        "nesting": 2,
+        "long_blocks": 1,
+        "debt_markers": 0,
+        "duplicate_lines": 3,
+        "nearby_test": true
+      }
+    },
+    {
+      "path": "internal/server/server.go",
+      "risk_score": 42.3,
+      "reasons": [
+        "moderate file size (136 LOC)",
+        "branch density 0.09",
+        "broad import surface (7)",
+        "mixed responsibility signals: config, persistence, transport, ui",
+        "duplicated normalized lines (2)"
+      ],
+      "metrics": {
+        "loc": 136,
+        "imports": 7,
+        "fan_in": 1,
+        "branch_density": 0.088,
+        "nesting": 3,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 2,
+        "nearby_test": true
+      }
+    },
+    {
+      "path": "cmd/app/main.go",
+      "risk_score": 40.5,
+      "reasons": [
+        "broad import surface (7)",
+        "no nearby test by path/name convention",
+        "mixed responsibility signals: config, persistence, transport",
+        "duplicated normalized lines (3)"
+      ],
+      "metrics": {
+        "loc": 53,
+        "imports": 7,
+        "fan_in": 0,
+        "branch_density": 0.075,
+        "nesting": 3,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 3,
+        "nearby_test": false
+      }
+    },
+    {
+      "path": "cmd/client/main.go",
+      "risk_score": 37.8,
+      "reasons": [
+        "branch density 0.08",
+        "broad import surface (7)",
+        "no nearby test by path/name convention",
+        "duplicated normalized lines (4)"
+      ],
+      "metrics": {
+        "loc": 36,
+        "imports": 7,
+        "fan_in": 0,
+        "branch_density": 0.083,
+        "nesting": 3,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 4,
+        "nearby_test": false
+      }
+    },
+    {
+      "path": "internal/infra/watcher/watcher.go",
+      "risk_score": 33.8,
+      "reasons": [
+        "branch density 0.18",
+        "broad import surface (5)",
+        "debt markers (1)",
+        "duplicated normalized lines (2)"
+      ],
+      "metrics": {
+        "loc": 120,
+        "imports": 5,
+        "fan_in": 1,
+        "branch_density": 0.183,
+        "nesting": 5,
+        "long_blocks": 0,
+        "debt_markers": 1,
+        "duplicate_lines": 2,
+        "nearby_test": true
+      }
+    },
+    {
+      "path": "internal/infra/search/mapping.go",
+      "risk_score": 27.0,
+      "reasons": [
+        "broad import surface (8)",
+        "mixed responsibility signals: auth, persistence, validation",
+        "duplicated normalized lines (3)"
+      ],
+      "metrics": {
+        "loc": 53,
+        "imports": 8,
+        "fan_in": 0,
+        "branch_density": 0.057,
+        "nesting": 3,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 3,
+        "nearby_test": true
+      }
+    },
+    {
+      "path": "internal/domain/document_file.go",
+      "risk_score": 26.0,
+      "reasons": [
+        "branch density 0.31",
+        "duplicated normalized lines (1)"
+      ],
+      "metrics": {
+        "loc": 13,
+        "imports": 2,
+        "fan_in": 0,
+        "branch_density": 0.308,
+        "nesting": 2,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 1,
+        "nearby_test": true
+      }
+    },
+    {
+      "path": "internal/infra/parser/parser.go",
+      "risk_score": 23.2,
+      "reasons": [
+        "branch density 0.12",
+        "broad import surface (6)",
+        "duplicated normalized lines (2)"
+      ],
+      "metrics": {
+        "loc": 41,
+        "imports": 6,
+        "fan_in": 2,
+        "branch_density": 0.122,
+        "nesting": 2,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 2,
+        "nearby_test": true
+      }
+    },
+    {
+      "path": "internal/infra/scanner/scanner.go",
+      "risk_score": 23.1,
+      "reasons": [
+        "branch density 0.18",
+        "duplicated normalized lines (1)"
+      ],
+      "metrics": {
+        "loc": 17,
+        "imports": 3,
+        "fan_in": 1,
+        "branch_density": 0.176,
+        "nesting": 3,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 1,
+        "nearby_test": true
+      }
+    },
+    {
+      "path": "goHwpTxt/hwp.go",
+      "risk_score": 22.8,
+      "reasons": [
+        "branch density 0.14",
+        "broad import surface (6)"
+      ],
+      "metrics": {
+        "loc": 29,
+        "imports": 6,
+        "fan_in": 0,
+        "branch_density": 0.138,
+        "nesting": 2,
+        "long_blocks": 0,
+        "debt_markers": 0,
+        "duplicate_lines": 0,
+        "nearby_test": true
+      }
+    }
+  ],
+  "extraction_gaps": [],
+  "metrics": {
+    "code_files_scanned": 38,
+    "source_files": 22,
+    "test_files": 16,
+    "source_loc": 1207,
+    "avg_source_loc": 54.9,
+    "excluded_files": 2,
+    "duplicate_normalized_lines": 13,
+    "debt_markers": 1,
+    "test_to_source_ratio": 0.727,
+    "source_test_proximity": 0.864
+  },
+  "metadata": {
+    "scanner": "code-cartography/scripts/score.py",
+    "limitations": [
+      "Complexity, fan-in, and failure handling are heuristic signals, not language-accurate proofs.",
+      "Manual review should confirm whether hotspots are intentional, generated, or covered by non-local tests."
+    ]
+  }
+}
