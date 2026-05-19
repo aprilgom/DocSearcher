@@ -64,6 +64,10 @@ func (e *Engine) IndexDocument(doc domain.IndexedDocument) error {
 }
 
 func (e *Engine) Search(req domain.SearchRequest) (domain.SearchResult, error) {
+	if err := req.Validate(domain.PersonNameSearchPolicy()); err != nil {
+		return domain.SearchResult{}, err
+	}
+
 	result, err := e.search(req)
 	if err != nil {
 		return domain.SearchResult{}, err

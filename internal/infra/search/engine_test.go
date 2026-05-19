@@ -5,13 +5,11 @@ import (
 	"hwp-searcher/internal/domain"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
-	blevequery "github.com/blevesearch/bleve/v2/search/query"
 )
 
 func TestBuildIndexMappingContractUsesDomainSearchPolicy(t *testing.T) {
@@ -30,8 +28,9 @@ func TestBuildIndexMappingContractUsesDomainSearchPolicy(t *testing.T) {
 		t.Fatalf("Unmarshal mapping: %v", err)
 	}
 
-	tokenFilters := decoded["analysis"].(map[string]interface{})["token_filters"].(map[string]interface{})
-	ngramFilter := tokenFilters["ngram_filter"].(map[string]interface{})
+	analysis := mapValue(t, decoded, "analysis")
+	tokenFilters := mapValue(t, analysis, "token_filters")
+	ngramFilter := mapValue(t, tokenFilters, "ngram_filter")
 
 	// Then
 	if ngramFilter["min"] != float64(2) {
@@ -87,97 +86,7 @@ func TestDocumentCodecContractMapsIndexedDocumentToSchemaFields(t *testing.T) {
 		schema.ContentNoSpaceField: doc.ContentNoSpace,
 		schema.PathField:           string(doc.ID),
 	}
-
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("document codec field map = %#v, want schema-aligned fields %#v", got, want)
-	}
-}
-
-func TestBuildSearchRequestContractQueryModeUsesQueryStringAndResultOptions(t *testing.T) {
-	// Given
-	schema := domain.IndexSchema{
-		ContentField:        "body_text",
-		ContentNoSpaceField: "body_text_compact",
-		PathField:           "source_path",
-	}
-	req := domain.SearchRequest{
-		Query: "홍길동",
-		Mode:  domain.SearchModeQuery,
-	}
-
-	// When
-	got := buildSearchRequest(req, schema)
-
-	// Then
-	query, ok := got.Query.(*blevequery.QueryStringQuery)
-	if !ok {
-		t.Fatalf("Query type = %T, want *query.QueryStringQuery", got.Query)
-	}
-	if query.Query != req.Query {
-		t.Fatalf("Query.Query = %q, want %q", query.Query, req.Query)
-	}
-	if !reflect.DeepEqual(got.Fields, []string{schema.PathField, schema.ContentField}) {
-		t.Fatalf("query mode result fields = %#v, want schema path/content fields", got.Fields)
-	}
-	if got.Highlight == nil {
-		t.Fatalf("query mode Highlight is nil, want configured highlight for result fragments")
-	}
-}
-
-func TestBuildSearchRequestContractExactModeTargetsContentField(t *testing.T) {
-	// Given
-	schema := domain.IndexSchema{
-		ContentField:        "body_text",
-		ContentNoSpaceField: "body_text_compact",
-		PathField:           "source_path",
-	}
-	req := domain.SearchRequest{
-		Query: "홍길동 보고서",
-		Mode:  domain.SearchModeExact,
-	}
-
-	// When
-	got := buildSearchRequest(req, schema)
-
-	// Then
-	query, ok := got.Query.(*blevequery.MatchPhraseQuery)
-	if !ok {
-		t.Fatalf("Query type = %T, want *query.MatchPhraseQuery", got.Query)
-	}
-	if query.MatchPhrase != req.Query {
-		t.Fatalf("MatchPhrase = %q, want %q", query.MatchPhrase, req.Query)
-	}
-	if query.FieldVal != schema.ContentField {
-		t.Fatalf("exact mode should target content field: got %q, want %q", query.FieldVal, schema.ContentField)
-	}
-}
-
-func TestBuildSearchRequestContractIgnoreSpacesModeTargetsContentNoSpaceField(t *testing.T) {
-	// Given
-	schema := domain.IndexSchema{
-		ContentField:        "body_text",
-		ContentNoSpaceField: "body_text_compact",
-		PathField:           "source_path",
-	}
-	req := domain.SearchRequest{
-		Query: "홍길동",
-		Mode:  domain.SearchModeIgnoreSpaces,
-	}
-
-	// When
-	got := buildSearchRequest(req, schema)
-
-	// Then
-	query, ok := got.Query.(*blevequery.MatchQuery)
-	if !ok {
-		t.Fatalf("Query type = %T, want *query.MatchQuery", got.Query)
-	}
-	if query.Match != req.Query {
-		t.Fatalf("Match = %q, want %q", query.Match, req.Query)
-	}
-	if query.FieldVal != schema.ContentNoSpaceField {
-		t.Fatalf("ignore-spaces mode should target no-space field: got %q, want %q", query.FieldVal, schema.ContentNoSpaceField)
-	}
+	assertStringMap(t, got, want, "document codec field map")
 }
 
 func TestNewEngineRejectsUnsafeIndexPaths(t *testing.T) {
@@ -320,9 +229,10 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		req     domain.SearchRequest
-		wantIDs []domain.DocumentID
+		name               string
+		req                domain.SearchRequest
+		wantIDs            []domain.DocumentID
+		wantMarkedFragment bool
 	}{
 		{
 			name: "query string search",
@@ -330,7 +240,8 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 				Query: "홍길동",
 				Mode:  domain.SearchModeQuery,
 			},
-			wantIDs: []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+			wantIDs:            []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+			wantMarkedFragment: true,
 		},
 		{
 			name: "exact phrase search",
@@ -338,7 +249,8 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 				Query: "홍길동",
 				Mode:  domain.SearchModeExact,
 			},
-			wantIDs: []domain.DocumentID{"plain.hwp"},
+			wantIDs:            []domain.DocumentID{"plain.hwp"},
+			wantMarkedFragment: true,
 		},
 		{
 			name: "ignore spaces search",
@@ -346,7 +258,8 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 				Query: "홍길동",
 				Mode:  domain.SearchModeIgnoreSpaces,
 			},
-			wantIDs: []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+			wantIDs:            []domain.DocumentID{"plain.hwp", "spaced.hwp"},
+			wantMarkedFragment: true,
 		},
 	}
 
@@ -362,7 +275,90 @@ func TestSearchSupportsQueryModes(t *testing.T) {
 			if !hasExactlyIDs(got.Hits, tt.wantIDs) {
 				t.Fatalf("%s hits = %v, want IDs %v", tt.name, hitIDs(got.Hits), tt.wantIDs)
 			}
+			if got.Total != uint64(len(tt.wantIDs)) {
+				t.Fatalf("%s total = %d, want %d", tt.name, got.Total, len(tt.wantIDs))
+			}
+			if tt.wantMarkedFragment && !hasMarkedFragment(got.Hits) {
+				t.Fatalf("%s fragments = %v, want at least one highlighted result fragment", tt.name, hitFragments(got.Hits))
+			}
 		})
+	}
+}
+
+func TestSearchRejectsInvalidQueries(t *testing.T) {
+	// Given
+	engine, err := NewEngine(filepath.Join(t.TempDir(), "validate.bleve"))
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	defer engine.Close()
+
+	tests := []struct {
+		name  string
+		query string
+	}{
+		{name: "empty query", query: ""},
+		{name: "short query", query: "김"},
+		{name: "blank query", query: " \t\n "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// When
+			_, err := engine.Search(domain.SearchRequest{
+				Query: tt.query,
+				Mode:  domain.SearchModeQuery,
+			})
+
+			// Then
+			if err == nil {
+				t.Fatalf("Search(%q) returned nil error, want validation error", tt.query)
+			}
+			if !strings.Contains(err.Error(), "query must be at least 2 characters") {
+				t.Fatalf("Search(%q) error = %v, want minimum length validation error", tt.query, err)
+			}
+		})
+	}
+}
+
+func TestDeleteDocumentRemovesIndexedDocument(t *testing.T) {
+	// Given
+	engine, err := NewEngine(filepath.Join(t.TempDir(), "delete.bleve"))
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	defer engine.Close()
+
+	keep := domain.NewIndexedDocument(domain.NewDocument("keep.hwp", "홍길동 유지 문서"))
+	remove := domain.NewIndexedDocument(domain.NewDocument("remove.hwp", "홍길동 삭제 문서"))
+	for _, doc := range []domain.IndexedDocument{keep, remove} {
+		if err := engine.IndexDocument(doc); err != nil {
+			t.Fatalf("IndexDocument(%s): %v", doc.ID, err)
+		}
+	}
+
+	// When
+	if err := engine.DeleteDocument(remove.ID); err != nil {
+		t.Fatalf("DeleteDocument: %v", err)
+	}
+
+	// Then
+	count, err := engine.Count()
+	if err != nil {
+		t.Fatalf("Count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("Count after delete = %d, want 1", count)
+	}
+	got, err := engine.Search(domain.SearchRequest{
+		Query: "홍길동",
+		Mode:  domain.SearchModeQuery,
+	})
+	if err != nil {
+		t.Fatalf("Search after delete: %v", err)
+	}
+	if !hasExactlyIDs(got.Hits, []domain.DocumentID{keep.ID}) {
+		t.Fatalf("Search after delete hits = %v, want only %s", hitIDs(got.Hits), keep.ID)
 	}
 }
 
@@ -506,4 +502,50 @@ func hitIDs(hits []domain.SearchHit) []domain.DocumentID {
 		ids = append(ids, hit.ID)
 	}
 	return ids
+}
+
+func hitFragments(hits []domain.SearchHit) []string {
+	fragments := make([]string, 0, len(hits))
+	for _, hit := range hits {
+		fragments = append(fragments, hit.Fragment)
+	}
+	return fragments
+}
+
+func hasMarkedFragment(hits []domain.SearchHit) bool {
+	for _, hit := range hits {
+		if strings.Contains(hit.Fragment, "<mark>") && strings.Contains(hit.Fragment, "</mark>") {
+			return true
+		}
+	}
+	return false
+}
+
+func mapValue(t *testing.T, values map[string]interface{}, key string) map[string]interface{} {
+	t.Helper()
+	value, ok := values[key]
+	if !ok {
+		t.Fatalf("mapping is missing key %q in %#v", key, values)
+	}
+	mapped, ok := value.(map[string]interface{})
+	if !ok {
+		t.Fatalf("mapping key %q has type %T, want map[string]interface{}", key, value)
+	}
+	return mapped
+}
+
+func assertStringMap(t *testing.T, got map[string]string, want map[string]string, scenario string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("%s length = %d, want %d; got %#v, want %#v", scenario, len(got), len(want), got, want)
+	}
+	for key, wantValue := range want {
+		gotValue, ok := got[key]
+		if !ok {
+			t.Fatalf("%s missing key %q; got %#v, want %#v", scenario, key, got, want)
+		}
+		if gotValue != wantValue {
+			t.Fatalf("%s[%q] = %q, want %q; got %#v, want %#v", scenario, key, gotValue, wantValue, got, want)
+		}
+	}
 }
